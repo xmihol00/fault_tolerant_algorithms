@@ -1,0 +1,188 @@
+Init event
+Alice {"Alice":1}
+Init event
+Bob {"Bob":1}
+Send event
+Alice {"Alice":2}
+Making progress
+Bob {"Bob":2}
+Receive event
+Bob {"Bob":3, "Alice":2}
+Computing
+Alice {"Alice":3}
+Checkpoint
+Alice {"Alice":4}
+Making progress
+Bob {"Bob":4}
+Init event
+Carol {"Carol":1}
+Init event
+Dave {"Dave":1}
+Init event
+Eve {"Eve":1}
+Send event
+Carol {"Carol":2}
+Checkpoint
+Carol {"Carol":3}
+Send event
+Carol {"Carol":4}
+Send event
+Bob {"Bob":5}
+Receive event
+Dave {"Dave":2, "Carol":2}
+Checkpoint
+Dave {"Dave":3}
+Send event
+Eve {"Eve":2}
+Checkpoint
+Eve {"Eve":3}
+Receive event
+Bob {"Bob":6, "Carol":4}
+Checkpoint
+Carol {"Carol":5}
+Receive event
+Eve {"Eve":4, "Carol":2}
+Receive event
+Dave {"Dave":4, "Eve":2}
+Checkpoint
+Dave {"Dave":5}
+Receive event
+Carol {"Carol":6, "Bob":5}
+Making progress
+Carol {"Carol":7}
+Send event
+Alice {"Alice":5}
+Receive event
+Alice {"Alice":6, "Carol":4}
+Receive event
+Bob {"Bob":7, "Alice":5}
+Checkpoint
+Bob {"Bob":8}
+Send event
+Alice {"Alice":7}
+Making progress
+Alice {"Alice":8}
+Checkpoint
+Alice {"Alice":9}
+Computing
+Eve {"Eve":5}
+Processing results
+Eve {"Eve":6}
+Checkpoint
+Carol {"Carol":8}
+Send event
+Dave {"Dave":6}
+Receive event
+Eve {"Eve":7, "Dave":6}
+Making progress
+Eve {"Eve":8}
+Checkpoint
+Eve {"Eve":9}
+Receive event
+Dave {"Dave":7, "Alice":5}
+Receive event
+Carol {"Carol":9, "Dave":6}
+Receive event
+Carol {"Carol":10, "Alice":7}
+Send event
+Carol {"Carol":11}
+Receive event
+Bob {"Bob":9, "Alice":7}
+Checkpoint
+Bob {"Bob":10}
+Making progress
+Carol {"Carol":12}
+Receive event
+Dave {"Dave":8, "Carol":11}
+Checkpoint
+Dave {"Dave":9}
+Receive event
+Dave {"Dave":10, "Alice":7}
+Checkpoint
+Dave {"Dave":11}
+Send event
+Bob {"Bob":11}
+Receive event
+Alice {"Alice":10, "Bob":11}
+Receive event
+Eve {"Eve":10, "Alice":7}
+Receive event
+Carol {"Carol":13, "Bob":11}
+Checkpoint
+Eve {"Eve":11}
+Send event
+Dave {"Dave":12}
+Making progress
+Dave {"Dave":13}
+Checkpoint
+Carol {"Carol":14}
+Receive event
+Bob {"Bob":12, "Carol":11}
+Checkpoint
+Bob {"Bob":13}
+Send event
+Bob {"Bob":14}
+Checkpoint
+Dave {"Dave":14}
+Send event
+Dave {"Dave":15}
+Computing
+Alice {"Alice":11}
+Receive event
+Alice {"Alice":12, "Bob":14}
+Checkpoint
+Alice {"Alice":13}
+Computing
+Bob {"Bob":15}
+Receive event
+Alice {"Alice":14, "Dave":6}
+Processing results
+Bob {"Bob":16}
+Receive event
+Carol {"Carol":15, "Dave":12}
+Receive event
+Dave {"Dave":16, "Bob":5}
+Receive event
+Eve {"Eve":12, "Bob":17}
+Checkpoint
+Eve {"Eve":13}
+Receive event
+Bob {"Bob":17, "Dave":12}
+Checkpoint
+Bob {"Bob":18}
+Send event
+Bob {"Bob":19}
+Receive event
+Eve {"Eve":14, "Dave":15}
+Computing
+Eve {"Eve":15}
+Processing results
+Eve {"Eve":16}
+Receive event
+Carol {"Carol":16, "Dave":15}
+Checkpoint
+Carol {"Carol":17}
+Receive event
+Carol {"Carol":18, "Bob":14}
+Checkpoint
+Carol {"Carol":19}
+Send event
+Bob {"Bob":20}
+Checkpoint
+Bob {"Bob":21}
+Send event
+Bob {"Bob":22}
+Receive event
+Alice {"Alice":15, "Bob":19}
+Making progress
+Alice {"Alice":16}
+Making progress
+Dave {"Dave":17}
+Receive event
+Dave {"Dave":18, "Bob":22}
+Receive event
+Eve {"Eve":17, "Bob":20}
+Receive event
+Alice {"Alice":17, "Bob":22}
+Receive event
+Carol {"Carol":20, "Bob":22}
