@@ -9,7 +9,7 @@ def count_concurrent_events(events, plot_graph=False):
                                         .order_by(lambda x: x.key.name)) # group the events by each person and order them alphabetically
     names = events_grouped.select(lambda x: x.key.name) # select just the names
     name_events_enumerable = (events_grouped.select(lambda x: [x.key.name, # name of the person
-                                                               x.select(lambda y: list(y["clock"].items())) # select the event name and time information for one person
+                                                               x.select(lambda y: list(y["clock"].items())) # select the time information
                                                                 .order_by(lambda y: y[0][1])  # events seem to be order, but might not be always the case, order them to be sure from 1 to N
                                                                 .to_list() # make list of the events for the person
                                                               ]))

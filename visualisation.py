@@ -23,7 +23,7 @@ names = names_enumerable.to_list()
 events_by_names_ordered_dict = dict( # create a dictornary from tuples
                                  tuple( # make tuples ('name', 'events')
                                     events_grouped.select(lambda x: [x.key.name, # name of the person
-                                                                     x.select(lambda y: [y["event"], list(y["clock"].items())]) # select the event name and time information for one person
+                                                                     x.select(lambda y: [y["event"], list(y["clock"].items())]) # select the event name and time information into single list
                                                                       .order_by(lambda y: y[1][0][1])  # events seem to be order, but might not be always the case, order them to be sure from 1 to N
                                                                       .to_list() # make list of the events for one person
                                                                     ]
