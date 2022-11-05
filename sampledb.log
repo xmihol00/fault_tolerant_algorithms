@@ -143,7 +143,7 @@ Carol {"Carol":15, "Dave":12}
 Receive event
 Dave {"Dave":16, "Bob":5}
 Receive event
-Eve {"Eve":12, "Bob":17}
+Eve {"Eve":12, "Bob":14}
 Checkpoint
 Eve {"Eve":13}
 Receive event

@@ -145,5 +145,3 @@ def update(time, events_coordinates, events_plots, names, indices, recieve_event
 anim = animation.FuncAnimation(figure, update, fargs=[events_coordinates, events_plots, events_names, events_indices, recieve_events_coordinates, recieve_events_plots], 
                                interval=25, blit=True, repeat=False)
 plt.show()
-
-
