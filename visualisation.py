@@ -15,7 +15,7 @@ mattrikel_nummer = 12211951
 regex = '(.*)\n(\S*) ({.*})'
 events = []
 
-with open(f'sampledb.log') as f:
+with open(f'testdb1.log') as f:
     events = [{'event': event, 'host': host, 'clock': ast.literal_eval(clock)}
                for event, host, clock in re.findall(regex, f.read())]
 
@@ -119,7 +119,8 @@ recieve_events = (Enumerable(events_dict.values()).select_many(lambda x: x) # se
 for x1, y1, x2, y2, sender in recieve_events:
     span_x = x2 - x1
     recieve_event_coordinates = [x1, np.linspace(x1, x2, span_x), np.linspace(y1, y2, span_x)] # store a starting point of a line and create the line
-    plot, = axis.plot(recieve_event_coordinates[1], recieve_event_coordinates[2], linewidth=1.0, color=cmap_table(names_reversed.index(sender))) # plot the message line with the color of the sender
+    plot, = axis.plot(recieve_event_coordinates[1], recieve_event_coordinates[2], linewidth=1.0, 
+                      color=cmap_table(names_reversed.index(sender)), marker="D", markevery=[-1], markersize=9.0) # plot the message line with the color of the sender
     recieve_events_coordinates.append(recieve_event_coordinates) # store the line info for animation
     recieve_events_plots.append(plot) # store the plot for animation
 
