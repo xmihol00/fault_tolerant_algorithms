@@ -45,7 +45,7 @@ def recovery_line(events, failed_processes):
                 if len(events_dict[receiver]) >= time: # reciever received message, that was never send, must rollback
                     failed_processes_dict[receiver] = time  # they must rollback to at least one event before the time of receival of the message
 
-    return "\n" + "\n".join([f"'{events[-1][0]}' from '{events[-1][1][0]}' at time '{events[-1][1][1]}'" for events in events_dict.values()])
+    return "\n" + "\n".join([f"{events[-1][0]} from {events[-1][1][0]} at time {events[-1][1][1]}" for events in events_dict.values()])
 
 if __name__ == "__main__":
     student_name = 'David Mihola' # fill with your student name
@@ -59,4 +59,4 @@ if __name__ == "__main__":
         events = [{'event': event, 'host': host, 'clock': ast.literal_eval(clock)}
                    for event, host, clock in re.findall(regex, f.read())]
 
-    print("Computed recovery line: ", recovery_line(events, ["Bob", "Dave", "Alice", "Carol", "Eve"]))
+    print("Computed recovery line: ", recovery_line(events, ["Bob", "Carol", "Alice"]))

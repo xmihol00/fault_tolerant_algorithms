@@ -1,0 +1,107 @@
+sampledb.log ["Dave", "Alice"]
+Computed recovery line:  
+Checkpoint from Alice at time 13
+Send event from Bob at time 22
+Checkpoint from Carol at time 14
+Checkpoint from Dave at time 14
+Checkpoint from Eve at time 13
+
+testdb0.log ["Dave", "Alice"]
+Computed recovery line:  
+Init event from Alice at time 1
+Checkpoint from Bob at time 5
+Init event from Carol at time 1
+Init event from Dave at time 1
+Checkpoint from Eve at time 3
+
+testdb1.log ["Dave", "Alice"]
+Computed recovery line:  
+Checkpoint from Alice at time 2
+Init event from Bob at time 1
+Send event from Carol at time 13
+Checkpoint from Dave at time 7
+Checkpoint from Eve at time 11
+
+testdb2.log ["Dave", "Alice"]
+Computed recovery line:  
+Checkpoint from Alice at time 8
+Computing from Bob at time 15
+Computing from Carol at time 13
+Checkpoint from Dave at time 8
+Checkpoint from Eve at time 15
+
+testdb3.log ["Dave", "Alice"]
+Computed recovery line:  
+Checkpoint from Alice at time 4
+Checkpoint from Bob at time 10
+Init event from Carol at time 1
+Checkpoint from Dave at time 5
+Checkpoint from Eve at time 12
+
+testdb4.log ["Dave", "Alice"]
+Computed recovery line:  
+Checkpoint from Alice at time 14
+Checkpoint from Bob at time 15
+Checkpoint from Carol at time 8
+Checkpoint from Dave at time 23
+Checkpoint from Eve at time 13
+
+
+
+sampledb.log ["Carol", "Eve"]
+Computed recovery line:  
+Receive event from Alice at time 17
+Send event from Bob at time 22
+Checkpoint from Carol at time 19
+Receive event from Dave at time 18
+Checkpoint from Eve at time 13
+
+testdb0.log ["Carol", "Eve"]
+Computed recovery line:  
+Send event from Alice at time 3
+Checkpoint from Bob at time 5
+Init event from Carol at time 1
+Init event from Dave at time 1
+Checkpoint from Eve at time 3
+
+testdb1.log ["Carol", "Eve"]
+Computed recovery line:  
+Receive event from Alice at time 6
+Receive event from Bob at time 8
+Checkpoint from Carol at time 12
+Checkpoint from Dave at time 10
+Checkpoint from Eve at time 11
+
+testdb2.log ["Carol", "Eve"]
+Computed recovery line:  
+Receive event from Alice at time 14
+Computing from Bob at time 15
+Checkpoint from Carol at time 11
+Receive event from Dave at time 12
+Checkpoint from Eve at time 18
+
+testdb3.log ["Carol", "Eve"]
+Computed recovery line:  
+Checkpoint from Alice at time 4
+Checkpoint from Bob at time 13
+Init event from Carol at time 1
+Checkpoint from Dave at time 5
+Checkpoint from Eve at time 10
+
+testdb4.log ["Carol", "Eve"]
+Computed recovery line:  
+Checkpoint from Alice at time 14
+Checkpoint from Bob at time 15
+Checkpoint from Carol at time 8
+Checkpoint from Dave at time 23
+Checkpoint from Eve at time 13
+
+
+
+sampledb.log ["Bob", "Carol", "Alice"]
+Computed recovery line:  
+Checkpoint from Alice at time 13
+Checkpoint from Bob at time 21
+Checkpoint from Carol at time 14
+Checkpoint from Dave at time 14
+Checkpoint from Eve at time 13

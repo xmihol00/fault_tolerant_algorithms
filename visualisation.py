@@ -15,7 +15,7 @@ mattrikel_nummer = 12211951
 regex = '(.*)\n(\S*) ({.*})'
 events = []
 
-with open(f'testdb1.log') as f:
+with open(f'testdb4.log') as f:
     events = [{'event': event, 'host': host, 'clock': ast.literal_eval(clock)}
                for event, host, clock in re.findall(regex, f.read())]
 

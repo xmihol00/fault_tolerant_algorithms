@@ -1,0 +1,150 @@
+Init event
+Eve {"Eve": 1}
+Init event
+Dave {"Dave": 1}
+Making progress
+Eve {"Eve": 2}
+Init event
+Carol {"Carol": 1}
+Init event
+Bob {"Bob": 1}
+Send event
+Eve {"Eve": 3}
+Checkpoint
+Eve {"Eve": 4}
+Send event
+Eve {"Eve": 5}
+Computing
+Carol {"Carol": 2}
+Init event
+Alice {"Alice": 1}
+Computing
+Dave {"Dave": 2}
+Send event
+Eve {"Eve": 6}
+Send event
+Alice {"Alice": 2}
+Send event
+Carol {"Carol": 3}
+Receive event
+Alice {"Alice": 3, "Carol": 3}
+Receive event
+Eve {"Eve": 7, "Alice": 2}
+Send event
+Eve {"Eve": 8}
+Checkpoint
+Dave {"Dave": 3}
+Receive event
+Bob {"Bob": 2, "Alice": 2}
+Receive event
+Eve {"Eve": 9, "Carol": 3}
+Receive event
+Carol {"Carol": 4, "Eve": 6}
+Receive event
+Alice {"Alice": 4, "Eve": 8}
+Receive event
+Bob {"Bob": 3, "Eve": 8}
+Receive event
+Alice {"Alice": 5, "Eve": 5}
+Receive event
+Dave {"Dave": 4, "Eve": 8}
+Checkpoint
+Eve {"Eve": 10}
+Making progress
+Bob {"Bob": 4}
+Send event
+Alice {"Alice": 6}
+Receive event
+Bob {"Bob": 5, "Eve": 5}
+Receive event
+Eve {"Eve": 11, "Alice": 6}
+Checkpoint
+Alice {"Alice": 7}
+Checkpoint
+Carol {"Carol": 5}
+Computing
+Carol {"Carol": 6}
+Receive event
+Bob {"Bob": 6, "Eve": 6}
+Send event
+Eve {"Eve": 12}
+Computing
+Bob {"Bob": 7}
+Making progress
+Carol {"Carol": 7}
+Receive event
+Bob {"Bob": 8, "Eve": 3}
+Checkpoint
+Alice {"Alice": 8}
+Receive event
+Bob {"Bob": 9, "Alice": 6}
+Making progress
+Alice {"Alice": 9}
+Receive event
+Carol {"Carol": 8, "Alice": 2}
+Computing
+Bob {"Bob": 10}
+Making progress
+Eve {"Eve": 13}
+Computing
+Carol {"Carol": 9}
+Receive event
+Alice {"Alice": 10, "Eve": 12}
+Send event
+Dave {"Dave": 5}
+Receive event
+Carol {"Carol": 10, "Dave": 5}
+Making progress
+Alice {"Alice": 11}
+Checkpoint
+Bob {"Bob": 11}
+Computing
+Dave {"Dave": 6}
+Receive event
+Eve {"Eve": 14, "Dave": 5}
+Receive event
+Alice {"Alice": 12, "Eve": 3}
+Computing
+Bob {"Bob": 12}
+Receive event
+Dave {"Dave": 7, "Alice": 6}
+Checkpoint
+Eve {"Eve": 15}
+Checkpoint
+Dave {"Dave": 8}
+Checkpoint
+Carol {"Carol": 11}
+Computing
+Alice {"Alice": 13}
+Receive event
+Carol {"Carol": 12, "Eve": 12}
+Send event
+Dave {"Dave": 9}
+Receive event
+Eve {"Eve": 16, "Dave": 9}
+Computing
+Carol {"Carol": 13}
+Checkpoint
+Eve {"Eve": 17}
+Checkpoint
+Eve {"Eve": 18}
+Receive event
+Dave {"Dave": 10, "Eve": 12}
+Receive event
+Alice {"Alice": 14, "Dave": 9}
+Send event
+Bob {"Bob": 13}
+Checkpoint
+Bob {"Bob": 14}
+Send event
+Eve {"Eve": 19}
+Computing
+Bob {"Bob": 15}
+Send event
+Dave {"Dave": 11}
+Receive event
+Dave {"Dave": 12, "Eve": 5}
+Making progress
+Eve {"Eve": 20}
+Send event
+Eve {"Eve": 21}

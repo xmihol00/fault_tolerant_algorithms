@@ -1,0 +1,6 @@
+sampledb.log - Number of concurrent event pairs: 1837
+testdb0.log - Number of concurrent event pairs: 355
+testdb1.log - Number of concurrent event pairs: 777
+testdb2.log - Number of concurrent event pairs: 1454
+testdb3.log - Number of concurrent event pairs: 1967
+testdb4.log - Number of concurrent event pairs: 3522
