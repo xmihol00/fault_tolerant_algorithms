@@ -55,8 +55,8 @@ if __name__ == "__main__":
     regex = '(.*)\n(\S*) ({.*})'
     events = []
 
-    with open(f'sampledb.log') as f:
+    with open(f'testdb4.log') as f:
         events = [{'event': event, 'host': host, 'clock': ast.literal_eval(clock)}
                    for event, host, clock in re.findall(regex, f.read())]
 
-    print("Computed recovery line: ", recovery_line(events, ["Bob", "Carol", "Alice"]))
+    print("Computed recovery line: ", recovery_line(events, ["Bob", "Dave", "Eve", "Alice", "Carol"]))

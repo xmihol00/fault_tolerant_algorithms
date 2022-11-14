@@ -105,3 +105,143 @@ Checkpoint from Bob at time 21
 Checkpoint from Carol at time 14
 Checkpoint from Dave at time 14
 Checkpoint from Eve at time 13
+
+testdb0.log ["Bob", "Carol", "Alice"]
+Computed recovery line:  
+Init event from Alice at time 1
+Checkpoint from Bob at time 5
+Init event from Carol at time 1
+Init event from Dave at time 1
+Checkpoint from Eve at time 3
+
+testdb1.log ["Bob", "Carol", "Alice"]
+Computed recovery line:  
+Checkpoint from Alice at time 2
+Init event from Bob at time 1
+Checkpoint from Carol at time 12
+Checkpoint from Dave at time 10
+Receive event from Eve at time 13
+
+testdb2.log ["Bob", "Carol", "Alice"]
+Computed recovery line:  
+Checkpoint from Alice at time 8
+Checkpoint from Bob at time 14
+Checkpoint from Carol at time 11
+Receive event from Dave at time 12
+Send event from Eve at time 21
+
+testdb3.log ["Bob", "Carol", "Alice"]
+Computed recovery line:  
+Checkpoint from Alice at time 4
+Checkpoint from Bob at time 10
+Init event from Carol at time 1
+Checkpoint from Dave at time 5
+Checkpoint from Eve at time 10
+
+testdb4.log ["Bob", "Carol", "Alice"]
+Computed recovery line:  
+Checkpoint from Alice at time 14
+Checkpoint from Bob at time 15
+Checkpoint from Carol at time 8
+Checkpoint from Dave at time 23
+Checkpoint from Eve at time 13
+
+
+
+sampledb.log ["Bob", "Dave", "Eve"]
+Computed recovery line:  
+Checkpoint from Alice at time 13
+Checkpoint from Bob at time 21
+Checkpoint from Carol at time 14
+Checkpoint from Dave at time 14
+Checkpoint from Eve at time 13
+
+testdb0.log ["Bob", "Dave", "Eve"]
+Computed recovery line:  
+Send event from Alice at time 3
+Checkpoint from Bob at time 5
+Init event from Carol at time 1
+Init event from Dave at time 1
+Checkpoint from Eve at time 3
+
+testdb1.log ["Bob", "Dave", "Eve"]
+Computed recovery line:  
+Checkpoint from Alice at time 2
+Init event from Bob at time 1
+Send event from Carol at time 13
+Checkpoint from Dave at time 7
+Checkpoint from Eve at time 11
+
+testdb2.log ["Bob", "Dave", "Eve"]
+Computed recovery line:  
+Checkpoint from Alice at time 8
+Checkpoint from Bob at time 14
+Computing from Carol at time 13
+Checkpoint from Dave at time 8
+Checkpoint from Eve at time 15
+
+testdb3.log ["Bob", "Dave", "Eve"]
+Computed recovery line:  
+Checkpoint from Alice at time 4
+Checkpoint from Bob at time 10
+Init event from Carol at time 1
+Checkpoint from Dave at time 5
+Checkpoint from Eve at time 12
+
+testdb4.log ["Bob", "Dave", "Eve"]
+Computed recovery line:  
+Checkpoint from Alice at time 14
+Checkpoint from Bob at time 15
+Checkpoint from Carol at time 8
+Checkpoint from Dave at time 23
+Checkpoint from Eve at time 13
+
+
+
+sampledb.log ["Bob", "Dave", "Eve", "Alice", "Carol"]
+Computed recovery line:  
+Checkpoint from Alice at time 13
+Checkpoint from Bob at time 21
+Checkpoint from Carol at time 14
+Checkpoint from Dave at time 14
+Checkpoint from Eve at time 13
+
+testdb0.log ["Bob", "Dave", "Eve", "Alice", "Carol"]
+Computed recovery line:  
+Init event from Alice at time 1
+Checkpoint from Bob at time 5
+Init event from Carol at time 1
+Init event from Dave at time 1
+Checkpoint from Eve at time 3
+
+testdb1.log ["Bob", "Dave", "Eve", "Alice", "Carol"]
+Computed recovery line:  
+Checkpoint from Alice at time 2
+Init event from Bob at time 1
+Checkpoint from Carol at time 12
+Checkpoint from Dave at time 7
+Checkpoint from Eve at time 11
+
+testdb2.log ["Bob", "Dave", "Eve", "Alice", "Carol"]
+Computed recovery line:  
+Checkpoint from Alice at time 8
+Checkpoint from Bob at time 14
+Checkpoint from Carol at time 11
+Checkpoint from Dave at time 8
+Checkpoint from Eve at time 15
+
+testdb3.log ["Bob", "Dave", "Eve", "Alice", "Carol"]
+Computed recovery line:  
+Checkpoint from Alice at time 4
+Checkpoint from Bob at time 10
+Init event from Carol at time 1
+Checkpoint from Dave at time 7
+Checkpoint from Eve at time 10
+
+testdb4.log ["Bob", "Dave", "Eve", "Alice", "Carol"]
+Computed recovery line:  
+Checkpoint from Alice at time 14
+Checkpoint from Bob at time 15
+Checkpoint from Carol at time 8
+Checkpoint from Dave at time 23
+Checkpoint from Eve at time 13
