@@ -17,7 +17,7 @@ class EventGenerator():
         self.name_times = { name: 1 for name, _ in names_ration }
         self.name_send_events = { name: [] for name, _ in names_ration }
         self.names_count = len(names_ration)
-        self.send_event_prob_increase = 1 / self.names_count + 0.02
+        self.send_event_prob_increase = 1 / self.names_count + 0.02 # set the increase between names with some small bias
 
     def normalize_ratio_to_probability(self, tupled_ratios):
         tupled_ratios_enumerable = Enumerable(tupled_ratios)
@@ -50,24 +50,24 @@ class EventGenerator():
                         piceked_event = event
                         break
                     
-                if event == SEND_EVENT:
+                if event == SEND_EVENT: 
                     self.name_send_events[picked_name].append([time, 0.0, {}])
                 elif event == RECEIVE_EVENT:
-                    rnd.shuffle(self.names)
+                    rnd.shuffle(self.names) # randomize the selection of sender
                     for name in self.names:
-                        if name == picked_name:
+                        if name == picked_name: # skip the same sender/reciever pair
                             continue
-                        not_recieved = Enumerable(self.name_send_events[name]).where(lambda x: x[2].get(picked_name, True)).to_list()
+                        not_recieved = Enumerable(self.name_send_events[name]).where(lambda x: x[2].get(picked_name, True)).to_list() # filter only not recieved messages from given sender
                         if len(not_recieved) > 0:
                             send_event = rnd.choice(not_recieved)
                             timings[name] = send_event[0]
-                            send_event[1] += self.send_event_prob_increase
-                            send_event[2][picked_name] = False
+                            send_event[1] += self.send_event_prob_increase # increase the probability of send event being removed
+                            send_event[2][picked_name] = False # mark, that given 'name' has already recieved this message
                             if send_event[1] > rnd.random():
                                 self.name_send_events[name].remove(send_event)
                             break
 
-                    if len(timings) == 1:
+                    if len(timings) == 1: # sufficient send event was not found
                         continue
 
                 break

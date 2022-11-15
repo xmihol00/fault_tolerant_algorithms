@@ -8,6 +8,7 @@ from event_names import RECEIVE_EVENT
 def assign_vector_timestamps(events):
     names = (Enumerable(events).group_by(["name"], lambda x: x["host"])
                                .select(lambda x: x.key.name)
+                               .order_by(lambda x: x)
                                .to_list()) # get names to get the size of the vector timestamp
     vector_dict = {}
     indices_dict = {}
