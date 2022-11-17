@@ -35,20 +35,20 @@ NUMER_OF_EVENTS_PER_PROCESS = [ 10, 15, 20, 25, 30 ]
 if __name__ == "__main__":
     print(RESET_COLOR, end="")
 
-    for run_number in range(10):
-        for i in range(len(NAMES_RATIOS)):
+    for run_number in range(5):
+        for i in range(len(NAMES_RATIOS)): # generate files for different process names
             names_ratio = NAMES_RATIOS[i]
             events_ratio = EVENTS_RATIONS[i]
             
             event_generator = EventGenerator(names_ratio, events_ratio)
-            for number_of_events_per_process in NUMER_OF_EVENTS_PER_PROCESS:
+            for number_of_events_per_process in NUMER_OF_EVENTS_PER_PROCESS: # generate files for different counts of events
                 number_of_events = number_of_events_per_process * len(names_ratio) + run_number
 
                 event_file = ""
                 event_generator.reset()
                 for _ in range(number_of_events):
                     event, name, timings = event_generator.get_name_event_timing()
-                    event_file += f"{event}\n{name} {json.dumps(timings)}\n"
+                    event_file += f"{event}\n{name} {json.dumps(timings)}\n" # convert generated event to string
                 
                 events = load_events_from_text(event_file)
                 try:
@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
                     names = [name for name, _ in names_ratio]
                     for i in range(1, len(names) + 1):
-                        for combination in itertools.combinations(names, i):
+                        for combination in itertools.combinations(names, i): # try every possible combination of failures
                             result_A = recovery_line(events, combination)
                             result_B = recovery_line_validation(events, combination)
                             ok = result_A == result_B
@@ -70,5 +70,5 @@ if __name__ == "__main__":
                                 raise
                     print()
                 except:
-                    print(event_file, file=sys.stderr)
+                    print(event_file, file=sys.stderr) # save the file, some algorithm failed by redirection stderr to a file
                     exit(1)

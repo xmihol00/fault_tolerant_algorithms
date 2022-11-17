@@ -68,5 +68,5 @@ def count_concurrent_events_validation(events):
             
 if __name__ == "__main__":
     events = load_events()
-    print('Number of concurrent event pairs:', count_concurrent_events_validation(events))
     print('Number of concurrent event pairs:', count_concurrent_events(events))
+    print('Number of concurrent event pairs:', count_concurrent_events_validation(events))

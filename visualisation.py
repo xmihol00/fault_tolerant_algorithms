@@ -29,7 +29,7 @@ def update(time, events_coordinates, events_plots, event_names, indices, recieve
     return events_plots + recieve_events_plots # return all the plots that changed
 
 if __name__ == "__main__":
-    events = load_events("test.log")
+    events = load_events()
 
     events_grouped = Enumerable(events).group_by(["name"], lambda x: x["host"]).order_by(lambda x: x.key.name) # group the events by each person and order them alphabetically
     names_enumerable = events_grouped.select(lambda x: x.key.name) # get the names of each person and keep the enumerable

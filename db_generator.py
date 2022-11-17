@@ -6,6 +6,7 @@ from events import RECEIVE_EVENT
 from events import SEND_EVENT
 from events import INIT_EVENT
 
+# play with the ratios and number of events to generate different files
 NAMES_RATIO = [("Alice", 1.0), ("Bob", 1.07), ("Carol", 1.05), ("Dave", 1.02), ("Eve", 1.1)]
 EVENTS_RATION = [("Send event", 2.0), ("Receive event", len(NAMES_RATIO) ), ("Checkpoint", 1.5), ("Making progress", 0.75), ("Computing", 0.75)]
 NUMBER_OF_EVENTS = 35
@@ -21,8 +22,8 @@ class EventGenerator():
 
     def normalize_ratio_to_probability(self, tupled_ratios):
         tupled_ratios_enumerable = Enumerable(tupled_ratios)
-        total = tupled_ratios_enumerable.select(lambda x: x[1]).sum()
-        return tupled_ratios_enumerable.select(lambda x: (x[0], x[1] / total)).to_list()
+        total = tupled_ratios_enumerable.select(lambda x: x[1]).sum() 
+        return tupled_ratios_enumerable.select(lambda x: (x[0], x[1] / total)).to_list() # normalize by the sum of ratios
     
     def reset(self):
         self.name_times = { name: 1 for name in self.names }
@@ -48,7 +49,7 @@ class EventGenerator():
             while True:
                 drawn_distrib = rnd.random()
                 current_distrib = 0
-                for event, prob in self.events_probs:
+                for event, prob in self.events_probs: # pick an event based on drawn distribution
                     current_distrib += prob
                     if current_distrib >= drawn_distrib:
                         piceked_event = event
@@ -59,7 +60,7 @@ class EventGenerator():
                 elif event == RECEIVE_EVENT:
                     rnd.shuffle(self.names) # randomize the selection of sender
                     for name in self.names:
-                        if name == picked_name: # skip the same sender/reciever pair
+                        if name == picked_name: # skip same sender/reciever pair
                             continue
                         not_recieved = Enumerable(self.name_send_events[name]).where(lambda x: x[2].get(picked_name, True)).to_list() # filter only not recieved messages from given sender
                         if len(not_recieved) > 0:
@@ -73,10 +74,8 @@ class EventGenerator():
 
                     if len(timings) == 1: # sufficient send event was not found
                         continue
-
                 break
-            
-        
+                    
         self.name_times[picked_name] += 1
         return piceked_event, picked_name, timings
 

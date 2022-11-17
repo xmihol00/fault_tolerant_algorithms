@@ -80,3 +80,4 @@ def recovery_line_validation(events, failed_processes):
 if __name__ == "__main__":
     events = load_events()    
     print("Computed recovery line: ", recovery_line(events, ["Bob"]))
+    print("Computed recovery line: ", recovery_line_validation(events, ["Bob"]))
