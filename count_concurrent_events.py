@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 from py_linq import Enumerable  # pip install py-linq
 import networkx as nx           # pip install networkx
 
@@ -50,10 +51,22 @@ def count_concurrent_events(events, plot_graph=False):
 
     return len(concurrent_event_pairs_dict) # number of concurrent event pairs is equal to the number of unique entries in the dictonary
 
-def count_concurrent_events(events):
-    pass
-
+def count_concurrent_events_validation(events):
+    # clean and merge the vector timestamps
+    vector_timestamps = (Enumerable(assign_vector_timestamps_to_dict(events).values()).select_many(lambda x: Enumerable(x).select(lambda y: y[1]) # select just the vectors
+                                                                                                                          .to_list())
+                                                                                      .to_list())
+    concurent_event_count = 0
+    vector_timestamps = np.array(vector_timestamps)
+    for vector_timestamp_A in vector_timestamps:
+        for vector_timestamp_B in vector_timestamps: # do the cartesian product of events
+            timestamp_difference = vector_timestamp_A - vector_timestamp_B
+            if timestamp_difference.max() > 0 and timestamp_difference.min() < 0: # events are not comparable
+                concurent_event_count += 1
+    
+    return concurent_event_count // 2 # make pairs
+            
 if __name__ == "__main__":
     events = load_events()
-
+    print('Number of concurrent event pairs:', count_concurrent_events_validation(events))
     print('Number of concurrent event pairs:', count_concurrent_events(events))
