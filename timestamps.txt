@@ -190,7 +190,7 @@ testdb2.log
 
 Init event [0, 0, 0, 0, 1]
 Init event [0, 0, 0, 1, 0]
-Making progress [0, 0, 0, 0, 2]0..................
+Making progress [0, 0, 0, 0, 2]
 Init event [0, 0, 1, 0, 0]
 Init event [0, 1, 0, 0, 0]
 Send event [0, 0, 0, 0, 3]

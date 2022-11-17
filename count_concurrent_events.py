@@ -1,18 +1,22 @@
-import re
-import ast
 import matplotlib.pyplot as plt
 from py_linq import Enumerable  # pip install py-linq
 import networkx as nx           # pip install networkx
 
+from assign_vector_timestamps import assign_vector_timestamps_to_dict
+from events import load_events
+
 def count_concurrent_events(events, plot_graph=False):
-    events_grouped = (Enumerable(events).group_by(["name"], lambda x: x["host"])
-                                        .order_by(lambda x: x.key.name)) # group the events by each person and order them alphabetically
+    events_grouped = (Enumerable(events).group_by(["name"], lambda x: x["host"]) # group the events by each person
+                                        .order_by(lambda x: x.key.name)) # order them alphabetically
+    
     names_enumerable = events_grouped.select(lambda x: x.key.name) # select just the names
+    
     name_events_enumerable = (events_grouped.select(lambda x: [x.key.name, # name of the person
                                                                x.select(lambda y: list(y["clock"].items())) # select the time information
                                                                 .order_by(lambda y: y[0][1])  # events seem to be order, but might not be always the case, order them to be sure from 1 to N
                                                                 .to_list() # make list of the events for the person
                                                               ]))
+    
     events_dict = (dict(tuple(name_events_enumerable.to_list()))) # create a dictonary of events for each person
 
     G = nx.DiGraph() # create a directed graph
@@ -38,24 +42,18 @@ def count_concurrent_events(events, plot_graph=False):
     concurrent_event_pairs_dict = { } # dictonary to store already found concurrent event pairs 
     pure_events_enumerable = ((Enumerable(events).select(lambda x: list(x["clock"].items())[0])))
     for event_A in pure_events_enumerable: 
-        for event_B in pure_events_enumerable.where(lambda x: x != event_A): # do the cartesian product between events
+        for event_B in pure_events_enumerable.where(lambda x: x != event_A): # do the cartesian product of events
             if not (concurrent_event_pairs_dict.get((event_A, event_B), False) or 
                     concurrent_event_pairs_dict.get((event_B, event_A), False)): # check if the event pair isn't already marked as concurrent
                 if not (nx.has_path(G, event_A, event_B) or nx.has_path(G, event_B, event_A)): # no path from 'event_A' to 'event_B' or the other way around, therefore they must be concurrent
                     concurrent_event_pairs_dict[(event_A, event_B)] = True # mark the pair as a concurrent event pair
 
-    return len(concurrent_event_pairs_dict) # return the number of unique entries in the dictonary
+    return len(concurrent_event_pairs_dict) # number of concurrent event pairs is equal to the number of unique entries in the dictonary
+
+def count_concurrent_events(events):
+    pass
 
 if __name__ == "__main__":
-    student_name = 'David Mihola' # fill with your student name
-    assert student_name != 'your_student_name', 'Please fill in your student_name before you start.'
-    mattrikel_nummer = 12211951
-
-    regex = '(.*)\n(\S*) ({.*})'
-    events = []
-
-    with open(f'testdb4.log') as f:
-        events = [{'event': event, 'host': host, 'clock': ast.literal_eval(clock)}
-                   for event, host, clock in re.findall(regex, f.read())]
+    events = load_events()
 
     print('Number of concurrent event pairs:', count_concurrent_events(events))

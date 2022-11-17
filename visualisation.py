@@ -1,23 +1,13 @@
-import re
-import ast
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from py_linq import Enumerable  # pip install py-linq
 import copy
 
-from event_names import NOP
+from events import NOP
+from events import load_events
 
-student_name = 'David Mihola' # fill with your student name
-assert student_name != 'your_student_name', 'Please fill in your student_name before you start.'
-mattrikel_nummer = 12211951
-
-regex = '(.*)\n(\S*) ({.*})'
-events = []
-
-with open(f'testdb4.log') as f:
-    events = [{'event': event, 'host': host, 'clock': ast.literal_eval(clock)}
-               for event, host, clock in re.findall(regex, f.read())]
+events = load_events()
 
 events_grouped = Enumerable(events).group_by(["name"], lambda x: x["host"]).order_by(lambda x: x.key.name) # group the events by each person and order them alphabetically
 names_enumerable = events_grouped.select(lambda x: x.key.name) # get the names of each person and keep the enumerable
@@ -147,5 +137,5 @@ def update(time, events_coordinates, events_plots, event_names, indices, recieve
     return events_plots + recieve_events_plots # return all the plots that changed
 
 anim = animation.FuncAnimation(figure, update, fargs=[events_coordinates, events_plots, events_names, events_indices, recieve_events_coordinates, recieve_events_plots], 
-                               interval=25, blit=True, repeat=False)
+                               interval=25, blit=True, repeat=False) # animate the plot
 plt.show()
