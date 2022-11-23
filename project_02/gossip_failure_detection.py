@@ -15,19 +15,21 @@ HEARTBEATS = "HEARTBEATS"
 PROCESS = "PROCESS"
 
 SENDER_ID = "sender_id"
-RECEIVER_ID = "receiver_id"
+LISTENER_ID = "listener_id"
 
 CONNECTION = "tcp://127.0.0.1"
 T_GOSSIP = 5 # the paper suggests 'T_GOSSIP = xN/B', where: x is the number of bytes per gossip message,
              #                                              N is the number of processes and
              #                                              B is the available bandwith.
              # In this case, on localhost the bandwith is CPU bound - usually in Gb/s, the number of processes is expected to be low and
-             # the number of bytes send by each process is also low. This would lead to the gossip time being to small, therfore
-             # a minimum gossip time of 5 s is introduced, as the paper also suggests.
+             # the number of bytes send by each process is also low, although increasing with number of processes, as the heartbeat vector increases. 
+             # But still in this setting the gossip time using the equation is expected to be very small, therfore a minimum gossip time of 5 s is 
+             # introduced, as the paper also suggests.
 
 def gossip(n, N, process_info, print_lock):
     # create a listener
-    listener_thread = threading.Thread(target=responder,args=(n, N, process_info, print_lock)) # shares the same logical memory
+    update_lock = threading.Lock() # thread safe mutex to ensure threads don't update heartbeats over each other
+    listener_thread = threading.Thread(target=responder,args=(n, N, process_info, print_lock, update_lock)) # shares the same logical memory
     listener_thread.start()
 
     # Creates a publisher socket for sending messages
@@ -55,7 +57,7 @@ def gossip(n, N, process_info, print_lock):
         process_info[HEARTBEATS][n] += 1 # increase its heartbeat
         #with print_lock:
         #    print("sender:", msgNet, end="\n\n")
-        status = { SENDER_ID: int(n), RECEIVER_ID: p, HEARTBEATS: process_info[HEARTBEATS] }
+        status = { SENDER_ID: int(n), LISTENER_ID: p, HEARTBEATS: process_info[HEARTBEATS] }
         s.send_string(GOSSIP, flags=zmq.SNDMORE)
         s.send_json(status)
 
@@ -70,7 +72,7 @@ def gossip(n, N, process_info, print_lock):
     listener_thread.join()
 
 
-def responder(n, N, process_info, print_lock):
+def responder(n, N, process_info, print_lock, update_lock):
     with print_lock:
         print(f"Listener {n} is up and running...")
 
@@ -94,20 +96,24 @@ def responder(n, N, process_info, print_lock):
                 msg_type = s.recv_string()
                 msg = s.recv_json()
                 
-                if msg_type == TERMINATE and msg[RECEIVER_ID] == n:
+                if msg_type == TERMINATE and msg[LISTENER_ID] == n:
                     with print_lock:
                         print(f"{TERMINATE} message received by P{n} from P{msg[SENDER_ID]}")
                     break
 
-                elif msg_type == GOSSIP and msg[RECEIVER_ID] == n:
-                    # merge the heartbeats of the reciever and sender
-                    process_info[HEARTBEATS] = [int(x) for x in np.max(np.stack((process_info[HEARTBEATS], msg[HEARTBEATS])), axis=0)]
+                elif msg_type == GOSSIP and msg[LISTENER_ID] == n:
+                    with update_lock: # ensure sender and listener do not update at the same time
+                        # merge the heartbeats of the listener and sender - the listener and sender with same ID share memory, 
+                        # they are just threads of the same process
+                        process_info[HEARTBEATS] = [int(x) for x in np.max(np.stack((process_info[HEARTBEATS], msg[HEARTBEATS])), axis=0)]
+
                     with print_lock:
                         print(f"{GOSSIP} message received by P{n} from P{msg[SENDER_ID]}, heartbeats: {process_info[HEARTBEATS]}")
             except:
                 pass
             
-def run_processes(nodes, N, msgNet, print_lock):
+def run_processes(nodes, N, msgNet):
+    print_lock = multiprocessing.Lock() # process safe mutex to ensure processes don't print over each other
     processes = []
     for n in nodes:
         p = multiprocessing.Process(target=gossip, args=(n, N, msgNet[n], print_lock)) # No need to share the whole msgNet as processes don't share 
@@ -135,8 +141,7 @@ if __name__ == "__main__":
         msgNet[k][HEARTBEATS] = [0] * numnodes
 
     try:
-        print_lock = threading.Lock() # ensure processes don't print over each other
-        run_processes(nodes, numnodes, msgNet, print_lock)
+        run_processes(nodes, numnodes, msgNet)
     except KeyboardInterrupt: # ensure all processes terminate and all sockets are closed after interupting the run
         print("Cleanup...", file=sys.stderr)
         for process in msgNet:
