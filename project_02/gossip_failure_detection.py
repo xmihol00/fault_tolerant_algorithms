@@ -18,19 +18,31 @@ SENDER_ID = "sender_id"
 LISTENER_ID = "listener_id"
 
 CONNECTION = "tcp://127.0.0.1"
-T_GOSSIP = 5 # the paper suggests 'T_GOSSIP = xN/B', where: x is the number of bytes per gossip message,
-             #                                              N is the number of processes and
-             #                                              B is the available bandwith.
-             # In this case, on localhost the bandwith is CPU bound - usually in Gb/s, the number of processes is expected to be low and
-             # the number of bytes send by each process is also low, although increasing with number of processes, as the heartbeat vector increases. 
-             # But still in this setting the gossip time using the equation is expected to be very small, therfore a minimum gossip time of 5 s is 
-             # introduced, as the paper also suggests.
+
+T_GOSSIP = lambda _: (
+    5
+) # The paper suggests 'T_GOSSIP = xN/B', where: x is the number of bytes per gossip message,
+  #                                              N is the number of processes and
+  #                                              B is the available bandwith.
+  # In this case, on localhost the bandwith is CPU bound - usually in Gb/s, the number of processes is expected to be low and
+  # the number of bytes send by each process is also low, although increasing with number of processes, as the heartbeat vector increases. 
+  # But still in this setting the gossip time using this equation is expected to be very small, therfore a minimum gossip time of 5 s is 
+  # introduced, as the paper also suggests.
+T_FAIL = lambda numnodes, additive_constant = 0, multiplicative_constant = 1: (
+    T_GOSSIP(numnodes) * numnodes * np.log(numnodes) * multiplicative_constant + additive_constant
+) # From the graphs and explanations in the paper, I undetstood that 'T_FAIL' should be multiplied linearithmically by the number of nodes. 
+  # By adding aditive and multiplicative constans, the 'P_misstake' can be further decreased/increased.
+T_CLEANUP = lambda numnodes, additive_constant = 0, multiplicative_constant = 1: (
+    2 * T_FAIL(numnodes, additive_constant, multiplicative_constant)
+) # 2 * 'T_FAIL'
 
 def gossip(n, N, process_info, print_lock):
     # create a listener
     update_lock = threading.Lock() # thread safe mutex to ensure threads don't update heartbeats over each other
     listener_thread = threading.Thread(target=responder,args=(n, N, process_info, print_lock, update_lock)) # shares the same logical memory
     listener_thread.start()
+
+    t_gossip = T_GOSSIP(N)
 
     # Creates a publisher socket for sending messages
     context = zmq.Context()
@@ -61,7 +73,7 @@ def gossip(n, N, process_info, print_lock):
         s.send_string(GOSSIP, flags=zmq.SNDMORE)
         s.send_json(status)
 
-        time.sleep(T_GOSSIP)
+        time.sleep(t_gossip)
 
         # Process can fail with a small probability
         if random.randint(0, 3) < 1:
@@ -75,6 +87,13 @@ def gossip(n, N, process_info, print_lock):
 def responder(n, N, process_info, print_lock, update_lock):
     with print_lock:
         print(f"Listener {n} is up and running...")
+    
+    t_fail = T_FAIL(N)
+    t_cleanup = T_CLEANUP(N)
+    ones = np.ones(N)
+
+    fail_timestamps_mili = ones * sys.maxsize
+    cleanup_timestamps_mili = ones * sys.maxsize
 
     context = zmq.Context()
     
@@ -102,10 +121,26 @@ def responder(n, N, process_info, print_lock, update_lock):
                     break
 
                 elif msg_type == GOSSIP and msg[LISTENER_ID] == n:
+                    t_milli = int(time.time() * 1000)
+                    current_heartbeats = np.array(process_info[HEARTBEATS])
+                    recieved_heartbeats = np.array(msg[HEARTBEATS])
+                    updated_heartbeats = (current_heartbeats - recieved_heartbeats) < 0 # recieved hearbeat is higher than current
+
+                    fail_timestamps_mili *= not updated_heartbeats # mask changed timestamps
+                    fail_timestamps_mili += np.ones(N) * t_milli * updated_heartbeats # reset timestamps of updated heartbeats to current time
+
+                    cleanup_timestamps_mili *= not updated_heartbeats # mask changed timestamps
+                    cleanup_timestamps_mili += np.ones(N) * t_milli * updated_heartbeats # reset timestamps of updated heartbeats to current time
+
+                    # TODO check expired timestamps
+
+                    updated_heartbeats = [
+                        int(x) for x in np.max(np.stack((current_heartbeats, recieved_heartbeats)), axis=0)
+                    ]  # merge the heartbeats of the listener and sender - the listener and sender with same ID share memory, 
+                       # they are just threads of the same process. Convertion to list is necesary in order to serilize to JSON.
+
                     with update_lock: # ensure sender and listener do not update at the same time
-                        # merge the heartbeats of the listener and sender - the listener and sender with same ID share memory, 
-                        # they are just threads of the same process
-                        process_info[HEARTBEATS] = [int(x) for x in np.max(np.stack((process_info[HEARTBEATS], msg[HEARTBEATS])), axis=0)]
+                        process_info[HEARTBEATS] = updated_heartbeats
 
                     with print_lock:
                         print(f"{GOSSIP} message received by P{n} from P{msg[SENDER_ID]}, heartbeats: {process_info[HEARTBEATS]}")
