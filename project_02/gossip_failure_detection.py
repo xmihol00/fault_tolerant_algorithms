@@ -36,6 +36,9 @@ T_CLEANUP = lambda numnodes, additive_constant = 0, multiplicative_constant = 1:
     2 * T_FAIL(numnodes, additive_constant, multiplicative_constant)
 ) # 2 * 'T_FAIL'
 
+FAILED_PROCESS = -1
+CLEANED_PROCESS = -2
+
 def gossip(n, N, process_info, print_lock):
     # create a listener
     update_lock = threading.Lock() # thread safe mutex to ensure threads don't update heartbeats over each other
@@ -67,8 +70,7 @@ def gossip(n, N, process_info, print_lock):
             print(f"{GOSSIP} message sent by P{n} to P{p}")
 
         process_info[HEARTBEATS][n] += 1 # increase its heartbeat
-        #with print_lock:
-        #    print("sender:", msgNet, end="\n\n")
+        
         status = { SENDER_ID: int(n), LISTENER_ID: p, HEARTBEATS: process_info[HEARTBEATS] }
         s.send_string(GOSSIP, flags=zmq.SNDMORE)
         s.send_json(status)
@@ -88,12 +90,14 @@ def responder(n, N, process_info, print_lock, update_lock):
     with print_lock:
         print(f"Listener {n} is up and running...")
     
-    t_fail = T_FAIL(N)
-    t_cleanup = T_CLEANUP(N)
     ones = np.ones(N)
+    t_cleanup_milli = T_CLEANUP(N) * ones * 1000
+    t_fail_milli = T_FAIL(N) * ones * 1000
 
-    fail_timestamps_mili = ones * sys.maxsize
-    cleanup_timestamps_mili = ones * sys.maxsize
+    fail_timestamps_milli = ones * np.iinfo(np.int32).max
+    cleanup_timestamps_milli = ones * np.iinfo(np.int32).max
+
+    current_heartbeats = np.array(process_info[HEARTBEATS])
 
     context = zmq.Context()
     
@@ -121,26 +125,32 @@ def responder(n, N, process_info, print_lock, update_lock):
                     break
 
                 elif msg_type == GOSSIP and msg[LISTENER_ID] == n:
-                    t_milli = int(time.time() * 1000)
-                    current_heartbeats = np.array(process_info[HEARTBEATS])
+                    t_milli = int(time.time() * 1000) * ones
                     recieved_heartbeats = np.array(msg[HEARTBEATS])
-                    updated_heartbeats = (current_heartbeats - recieved_heartbeats) < 0 # recieved hearbeat is higher than current
+                    updated_heartbeats_mask = recieved_heartbeats > current_heartbeats  # mask with ones, where recieved hearbeats are higher than current
+                    
+                    fail_timestamps_milli *= ~updated_heartbeats_mask # mask out changed timestamps
+                    fail_timestamps_milli += t_milli * updated_heartbeats_mask # set masked timestamps to current time
+                    
+                    cleanup_timestamps_milli *= ~updated_heartbeats_mask # mask out changed timestamps
+                    cleanup_timestamps_milli += t_milli * updated_heartbeats_mask # set masked indices to current time
 
-                    fail_timestamps_mili *= not updated_heartbeats # mask changed timestamps
-                    fail_timestamps_mili += np.ones(N) * t_milli * updated_heartbeats # reset timestamps of updated heartbeats to current time
+                    updated_heartbeats = np.max(np.stack((current_heartbeats, recieved_heartbeats)), axis=0).astype(np.float64)
 
-                    cleanup_timestamps_mili *= not updated_heartbeats # mask changed timestamps
-                    cleanup_timestamps_mili += np.ones(N) * t_milli * updated_heartbeats # reset timestamps of updated heartbeats to current time
+                    cleaned_processes_mask = cleanup_timestamps_milli < t_milli - t_cleanup_milli
+                    updated_heartbeats *= ~cleaned_processes_mask # mask out cleaned processes
+                    updated_heartbeats += ones * CLEANED_PROCESS * cleaned_processes_mask # set the cleaned processes as cleaned
+                    current_heartbeats = updated_heartbeats.copy() # keep of a copy, where failed processes remain with current heartbeat value
 
-                    # TODO check expired timestamps
+                    failed_processes_mask = fail_timestamps_milli < t_milli - t_fail_milli
 
-                    updated_heartbeats = [
-                        int(x) for x in np.max(np.stack((current_heartbeats, recieved_heartbeats)), axis=0)
-                    ]  # merge the heartbeats of the listener and sender - the listener and sender with same ID share memory, 
-                       # they are just threads of the same process. Convertion to list is necesary in order to serilize to JSON.
+                    updated_heartbeats *= ~failed_processes_mask # mask out failed processes
+                    updated_heartbeats += ones * FAILED_PROCESS * failed_processes_mask # set fail processes as failed, so the sender doesn't resend them
 
-                    with update_lock: # ensure sender and listener do not update at the same time
-                        process_info[HEARTBEATS] = updated_heartbeats
+                    updated_heartbeats = [int(x) for x in updated_heartbeats]  # convertion to list in order to serilize to JSON.
+
+                    with update_lock: # ensure sender and listener do not update at the same time as they share memory
+                        process_info[HEARTBEATS] = updated_heartbeats 
 
                     with print_lock:
                         print(f"{GOSSIP} message received by P{n} from P{msg[SENDER_ID]}, heartbeats: {process_info[HEARTBEATS]}")
