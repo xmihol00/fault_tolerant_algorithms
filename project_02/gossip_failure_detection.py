@@ -1,14 +1,18 @@
 import random
-import threading
 import multiprocessing
-import os
 import time
-import zmq
+import os
 import sys
 import numpy as np
+import socket
+import pickle
+import signal
 
 # constants
 RUN_LENGTH = 120 # lenght of the simulation in seconds
+STATE_PRINTOUT_PERIOD = 10 # period of node states report
+NUMBER_OF_PRINTOUTS = RUN_LENGTH // STATE_PRINTOUT_PERIOD
+
 NODES_FAIL_RESTART_PROBS = [(0.0, 0.25), (0.15, 0.05), (0.0, 0.25), (0.0, 0.25)]
 
 GOSSIP = "G"
@@ -22,6 +26,8 @@ SENDER_ID = "s_id"
 LISTENER_ID = "l_id"
 
 CONNECTION = "tcp://127.0.0.1"
+IP = "127.0.0.1" # localhost
+PORT_OFFSET = 5500 
 
 T_MUL_CONST = 1
 T_ADD_CONST = 0
@@ -43,173 +49,166 @@ T_CLEANUP = lambda numnodes, multiplicative_constant = 1, additive_constant = 0:
     2 * T_FAIL(numnodes, multiplicative_constant, additive_constant)
 ) # 2 * 'T_FAIL'
 
-FAILED_PROCESS = -2
-CLEANED_PROCESS = -1
+FAILED_NODE = -2
+CLEANED_NODE = -1
 
 
-def gossip(n, N, node, print_lock):
-    # create a listener
-    update_lock = threading.Lock() # thread safe mutex to ensure threads don't update heartbeats over each other
-    listener_thread = threading.Thread(target=responder,args=(n, N, node, print_lock, update_lock)) # shares the same logical memory
-    listener_thread.start()
+class Node(multiprocessing.Process):
+    def __init__(self, id, number_of_nodes, print_lock, fail_prob, restart_prob):
+        super(Node, self).__init__()
 
-    t_gossip = T_GOSSIP(N)
-    heartbeats = node[HEARTBEATS]
+        self.id = id
+        self.number_of_nodes = number_of_nodes
+        self.print_lock = print_lock
+        self.fail_prob = fail_prob
+        self.restart_prob = restart_prob
 
-    # Creates a publisher socket for sending messages
-    context = zmq.Context()
-    s = context.socket(zmq.PUB)
-    s.bind(f"{CONNECTION}:{(5550 + n)}")
+        self.ones = np.ones(number_of_nodes)
+        self.t_cleanup = T_CLEANUP(N, T_MUL_CONST, T_ADD_CONST) * self.ones
+        self.t_fail = T_FAIL(N, T_MUL_CONST, T_ADD_CONST) * self.ones
+        self.t_gossip = T_GOSSIP(N)
+        self.heartbeats = np.zeros(number_of_nodes)
+        self.current_heartbeats = np.zeros(number_of_nodes)
+        
+        # As the paper suggests "In gossip protocols, a member forwards new information to randomly chosen members.", the communication
+        # should be unicast, not some kind of broadcast as in the original code
+        self.gossip_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # internet - UDP, transmission of gossip messages does not have to be reliable
+        self.receiver_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.receiver_socket.bind((IP, PORT_OFFSET + self.id)) # node listens on this socket
+        # sockets will be closed by the OS
 
-    # Randomly waiting for the listener thread sockets to connect, so the gossips messages send below are spreaded evenly accross time as 
-    # described in the paper: "In practice, the protocols are not run in rounds. Each member gossips at regular intervals, but the intervals 
-    # are not synchronized."
-    sleep_time = random.uniform(2.0, N + 2.0)
-    with print_lock:
-        print(f"Sender P{n} is waiting for {sleep_time} s befor sending first gossip messages...")
-    time.sleep(random.randint(2, N + 2))
-
-    while True:
-        if node[TERMINATED]:
-            if random.random() < node[RESTART_PROB]:
-                node[TERMINATED] = False
-                for i in range(N):
-                    node[HEARTBEATS][i] = CLEANED_PROCESS
-
-                node[HEARTBEATS][n] = 0
-                with print_lock:
-                    print(f"P{n} is restarting...")
-        else:
-            # Choose a random neighbor, compile and send it a GOSSIP message
-            heartbeats_numpy = np.array(heartbeats)
-            heartbeats_numpy[n] = CLEANED_PROCESS # mark self as cleaned to exclude the possibility of sending messages to itself
-            heartbeats_numpy = np.where((heartbeats_numpy != FAILED_PROCESS) & (heartbeats_numpy != FAILED_PROCESS))[0] # exclude failed and cleaned processes
-
-            if heartbeats_numpy.shape[0]: # only send message if there is any listener
-                listener_id = heartbeats_numpy[random.randint(0, heartbeats_numpy.shape[0] - 1)] # select one active process randomly
-
-                with print_lock:
-                    print(f"Gossip message sent by P{n} to P{listener_id}")
-
-                heartbeats[n] += 1 # increase its heartbeat
-                status = { SENDER_ID: int(n), LISTENER_ID: int(listener_id), HEARTBEATS: heartbeats }
-                s.send_string(GOSSIP, flags=zmq.SNDMORE)
-                s.send_json(status)
-
+        self.fail_timestamps = None
+        self.cleanup_timestamps = None
+        self.failed = False
     
-            # Process can fail with a small probability
-            if random.random() < node[FAIL_PROB]:
-                node[TERMINATED] = True
-                with print_lock:
-                    print(f"P{n} {node[FAIL_PROB]} failed...")
-
-        time.sleep(t_gossip)
-
-    # TODO
-    listener_thread.join()
-
-
-def responder(n, N, node, print_lock, update_lock):
-    with print_lock:
-        print(f"Listener P{n} is up and running...")
+    def stop(self):
+        self.terminate()
+        self.join()
+        
+    def print_state(self, *_):
+        with self.print_lock:
+            print(f"Node {self.id} is {'failed.' if self.failed else 'up and running...'}")
+            if not self.failed:
+                print(f"Node {self.id} perception of the network is:")
+                for i, heartbeat in enumerate(self.heartbeats):
+                    if i != self.id:
+                        print(f"   Node {i} is {'failed.' if heartbeat == FAILED_NODE else 'cleaned...' if heartbeat == CLEANED_NODE else 'up and running...'}")
     
-    ones = np.ones(N)
-    t_cleanup_milli = T_CLEANUP(N, T_MUL_CONST, T_ADD_CONST) * ones * 1000
-    t_fail_milli = T_FAIL(N, T_MUL_CONST, T_ADD_CONST) * ones * 1000
+    def register_signal_handlers(self):
+        signal.signal(signal.SIGUSR1, self.print_state)
+        signal.siginterrupt(signal.SIGUSR1, False)
 
-    t_milli = int(time.time() * 1000)
-    fail_timestamps_milli = ones * t_milli
-    cleanup_timestamps_milli = ones * t_milli
+    def run(self):
+        self.register_signal_handlers()
 
-    current_heartbeats = np.array(node[HEARTBEATS])
+        # Randomly waiting before nodes start to gossip as described in the paper: "In practice, the protocols are not run in rounds. 
+        # Each member gossips at regular intervals, but the intervals are not synchronized."
+        sleep_time = random.uniform(0.0, N)
+        with self.print_lock:
+            print(f"Node {self.id} is waiting for {sleep_time} s befor sending first gossip messages...", file=sys.stderr)
+        time.sleep(sleep_time)
 
-    context = zmq.Context()
-    
-    # Create subscriber sockets for each process
-    sockets = [None] * N
-    for process_id in range(N):
-        socket = context.socket(zmq.SUB)
-        socket.connect(f"{CONNECTION}:{5550 + process_id}")
-        socket.subscribe(GOSSIP)
-        socket.subscribe(TERMINATED)
-        sockets[process_id] = socket
+        current_time = time.time() # set up timestamps to current time
+        self.fail_timestamps = self.ones * current_time
+        self.cleanup_timestamps = self.ones * current_time
 
-    # Listening all nodes
-    while True:
-        for process_id in range(N):
-            socket = sockets[process_id]
-            try:
-                socket.RCVTIMEO = 100
-                message_type = socket.recv_string()
-                message = socket.recv_json()
-                
-                if message_type == TERMINATED and message[LISTENER_ID] == n:
-                    with print_lock:
-                        print(f"Terminate message received by P{n} from P{message[SENDER_ID]}")
-                    break
+        while True:
+            if self.failed:
+                if random.random() < self.restart_prob:
+                    self.failed = False
+                    for i in range(N):
+                        self.heartbeats[i] = CLEANED_NODE
 
-                elif message_type == GOSSIP and message[LISTENER_ID] == n:
-                    t_milli = int(time.time() * 1000) * ones
-                    recieved_heartbeats = np.array(message[HEARTBEATS])
-                    updated_heartbeats_mask = recieved_heartbeats > current_heartbeats  # mask with ones, where recieved hearbeats are higher than current
-                    
-                    fail_timestamps_milli *= ~updated_heartbeats_mask # mask out changed timestamps
-                    fail_timestamps_milli += t_milli * updated_heartbeats_mask # set masked timestamps to current time
-                    
-                    cleanup_timestamps_milli *= ~updated_heartbeats_mask # mask out changed timestamps
-                    cleanup_timestamps_milli += t_milli * updated_heartbeats_mask # set masked indices to current time
+                    self.heartbeats[self.id] = 0
+                    with self.print_lock:
+                        print(f"Node {self.id} is restarting...", file=sys.stderr)
+            else:
+                self.send_gossip()
+                if random.random() < self.fail_prob: # Process can fail with a small probability
+                    self.failed = True
+                    with self.print_lock:
+                        print(f"Node {self.id} failed...", file=sys.stderr)
 
-                    updated_heartbeats = np.max(np.stack((current_heartbeats, recieved_heartbeats)), axis=0).astype(np.float64)
+            try: # Waiting on socket is used instead of polling in the previous code. 
+                 # Waiting up to maximum of T_GOSSIP, then new gossip message must be sent.
 
-                    cleaned_processes_mask = cleanup_timestamps_milli < (t_milli - t_cleanup_milli)
-                    updated_heartbeats *= ~cleaned_processes_mask # mask out failed and cleaned processes
-                    updated_heartbeats += ones * CLEANED_PROCESS * cleaned_processes_mask # set the cleaned processes as cleaned
-                    current_heartbeats = updated_heartbeats.copy() # keep a copy, where failed processes remain with current heartbeat value
+                sleep_start = time.time() # timestamp of the start of the waiting
+                current_time = sleep_start
+                while sleep_start + self.t_gossip > current_time: # waited less than for T_GOSSIP
+                    self.receiver_socket.settimeout(sleep_start + self.t_gossip - current_time) # set the timeout to wait exactly for T_GOSSIP waiting to be fullfilled
+                    message = self.receiver_socket.recvfrom(65507)
+                    message = pickle.loads(message[0]) # deserilize
+                    self.receive_gossip(message)
+                    current_time = time.time()
 
-                    failed_processes_mask = (fail_timestamps_milli < (t_milli - t_fail_milli)) & ~cleaned_processes_mask 
-                    updated_heartbeats *= ~failed_processes_mask
-                    updated_heartbeats += ones * FAILED_PROCESS * failed_processes_mask # set fail processes as failed, so the sender doesn't resend them
-
-                    with update_lock: # ensure sender and listener do not update at the same time as they share memory
-                        for i, updated_heartbeat in enumerate(updated_heartbeats):
-                            node[HEARTBEATS][i] = int(updated_heartbeat) # convert to int in order to serilize to JSON
-
-                    with print_lock:
-                        print(f"Gossip message received by P{n} from P{message[SENDER_ID]}, heartbeats: {node[HEARTBEATS]}")
-            except:
+            except: # socket timed out, which means waiting for at least T_GOSSIP was performed
                 pass
-            
-def run_processes(N, network):
-    print_lock = multiprocessing.Lock() # process safe mutex to ensure processes don't print over each other
-    for i, node in enumerate(network):
-        node[PROCESS] = multiprocessing.Process(
-            target=gossip, args=(i, N, node, print_lock)
-        ) # No need to share the whole network as processes don't share the same logical memory, i.e. network would be copied during fork().
     
-    # Start node processes
-    for node in network:
-        node[PROCESS].start()
-    
-    time.sleep(RUN_LENGTH) # run the simulation for a given time
-    with print_lock:
-        print("Terminating...", file=sys.stderr)
+    def send_gossip(self):
+        heartbeats_numpy = np.array(self.heartbeats)
+        heartbeats_numpy[self.id] = CLEANED_NODE # mark self as cleaned to exclude the possibility of sending messages to itself
+        heartbeats_numpy = np.where((heartbeats_numpy != FAILED_NODE) & (heartbeats_numpy != CLEANED_NODE))[0] # exclude failed and cleaned processes
 
-    # Terminate and join node processes
-    for node in network:
-        node[PROCESS].terminate()
-        node[PROCESS].join()
+        if heartbeats_numpy.shape[0]: # only send message if there is any listener
+            listener_id = heartbeats_numpy[random.randint(0, heartbeats_numpy.shape[0] - 1)] # select randomly another node
+
+            with self.print_lock:
+                print(f"Node {self.id} gossips to node {listener_id}.")
+
+            self.heartbeats[self.id] += 1 # increase its heartbeat
+            status = { SENDER_ID: int(self.id), HEARTBEATS: self.heartbeats }
+            self.gossip_socket.sendto(pickle.dumps(status), (IP, PORT_OFFSET + listener_id)) # serilize and send a message to exactly one other node - unicast
+
+    def receive_gossip(self, message):
+        current_time = time.time()
+        recieved_heartbeats = message[HEARTBEATS]
+        updated_heartbeats_mask = recieved_heartbeats > self.current_heartbeats  # mask with ones, where recieved hearbeats are higher than current
+
+        self.fail_timestamps *= ~updated_heartbeats_mask # mask out changed timestamps
+        self.fail_timestamps += current_time * updated_heartbeats_mask # set masked timestamps to current time
+
+        self.cleanup_timestamps *= ~updated_heartbeats_mask # mask out changed timestamps
+        self.cleanup_timestamps += current_time * updated_heartbeats_mask # set masked indices to current time
+
+        updated_heartbeats = np.max(np.stack((self.current_heartbeats, recieved_heartbeats)), axis=0).astype(np.float64)
+
+        cleaned_processes_mask = self.cleanup_timestamps < (current_time - self.t_cleanup)
+        updated_heartbeats *= ~cleaned_processes_mask # mask out failed and cleaned processes
+        updated_heartbeats += self.ones * CLEANED_NODE * cleaned_processes_mask # set the cleaned processes as cleaned
+        self.current_heartbeats = updated_heartbeats.copy() # keep a copy, where failed processes remain with current heartbeat value
+
+        failed_processes_mask = (self.fail_timestamps < (current_time - self.t_fail)) & ~cleaned_processes_mask 
+        updated_heartbeats *= ~failed_processes_mask
+        updated_heartbeats += self.ones * FAILED_NODE * failed_processes_mask # set fail processes as failed, so the sender doesn't resend them
+
+        self.heartbeats = updated_heartbeats
+
+        with self.print_lock:
+            print(f"Node {self.id} received gossip from node {message[SENDER_ID]}, heartbeats: {self.heartbeats}")
+
+def run_network(network, print_lock):
+    for node in network: # start nodes processes
+        node.start()
+    
+    for _ in range(NUMBER_OF_PRINTOUTS): # run the simulation for a given time
+        time.sleep(STATE_PRINTOUT_PERIOD) 
+        for node in network:
+            os.kill(node.pid, signal.SIGUSR1)
+
+    for node in network: # terminate and join node processes
+        node.stop()
 
 if __name__ == "__main__":
     N = len(NODES_FAIL_RESTART_PROBS)
-    print(f"T_gossip: {T_GOSSIP(N)} s, T_fail: {T_FAIL(N, T_MUL_CONST, T_ADD_CONST)} s, T_cleanup: {T_CLEANUP(N, T_MUL_CONST, T_ADD_CONST)} s")
+    print(f"T_gossip: {T_GOSSIP(N)} s, T_fail: {T_FAIL(N, T_MUL_CONST, T_ADD_CONST)} s, T_cleanup: {T_CLEANUP(N, T_MUL_CONST, T_ADD_CONST)} s", file=sys.stderr)
+    print_lock = multiprocessing.Lock() # process safe mutex to ensure processes don't print over each other
 
-    network = [{TERMINATED: False, HEARTBEATS: [0] * N, PROCESS: None, FAIL_PROB: fail_prob, RESTART_PROB: restart_prob} 
-                  for fail_prob, restart_prob in NODES_FAIL_RESTART_PROBS]
+    network = [Node(id, N, print_lock, fail_prob, restart_prob)
+                  for id, (fail_prob, restart_prob) in enumerate(NODES_FAIL_RESTART_PROBS)]
     try:
-        run_processes(N, network)
-    except KeyboardInterrupt: # ensure all processes terminate and all sockets are closed after interupting the run
-        print("\nTerminating...", file=sys.stderr)
+        run_network(network, print_lock)
+    except KeyboardInterrupt: # ensure all processes terminate
+        with print_lock:
+            print("\nTerminating...", file=sys.stderr)
         for node in network:
-            if node.get(PROCESS, False): 
-                node[PROCESS].terminate() # SIGTERM, this will also clear the sockets 
-                node[PROCESS].join()
+            node.stop()
