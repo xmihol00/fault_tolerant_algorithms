@@ -7,33 +7,25 @@ import numpy as np
 import socket
 import pickle
 import signal
+import colorama as cm
 
 # constants
-RUN_LENGTH = 120 # lenght of the simulation in seconds
+RUN_LENGTH = 300 # lenght of the simulation in seconds
 STATE_PRINTOUT_PERIOD = 10 # period of node states report
 NUMBER_OF_PRINTOUTS = RUN_LENGTH // STATE_PRINTOUT_PERIOD
 
-NODES_FAIL_RESTART_PROBS = [(0.0, 0.25), (0.15, 0.05), (0.0, 0.25), (0.0, 0.25)]
+NODES_FAIL_RESTART_PROBS = [(0.05, 0.05), (0.15, 0.05), (0.02, 0.15), (0.01, 0.1), (0.01, 0.01)]
 
-GOSSIP = "G"
-TERMINATED = "T"
 HEARTBEATS = "HBs"
-PROCESS = "P"
-FAIL_PROB = "fp"
-RESTART_PROB = "rp"
-
 SENDER_ID = "s_id"
-LISTENER_ID = "l_id"
-
-CONNECTION = "tcp://127.0.0.1"
 IP = "127.0.0.1" # localhost
 PORT_OFFSET = 5500 
 
-T_MUL_CONST = 1
+T_MUL_CONST = 0.75
 T_ADD_CONST = 0
 
 T_GOSSIP = lambda _: (
-    2.0
+    2.5
 ) # The paper suggests 'T_GOSSIP = xN/B', where: x is the number of bytes per gossip message,
   #                                              N is the number of processes and
   #                                              B is the available bandwith.
@@ -49,9 +41,51 @@ T_CLEANUP = lambda numnodes, multiplicative_constant = 1, additive_constant = 0:
     2 * T_FAIL(numnodes, multiplicative_constant, additive_constant)
 ) # 2 * 'T_FAIL'
 
+UNKNOWN_NODE = -3
 FAILED_NODE = -2
 CLEANED_NODE = -1
+ACTIVATED_NODE = 0
 
+COLORS = True # Set to 'False' to print without colors, otherwise printing without colors is only non-terminal devices.
+TEXT_COLORS = [cm.Fore.LIGHTBLUE_EX, cm.Fore.LIGHTGREEN_EX, cm.Fore.MAGENTA, cm.Fore.LIGHTYELLOW_EX, cm.Fore.LIGHTRED_EX, cm.Fore.CYAN, cm.Fore.BLUE, cm.Fore.GREEN, 
+               cm.Fore.YELLOW, cm.Fore.LIGHTMAGENTA_EX, cm.Fore.LIGHTCYAN_EX, cm.Fore.RED]
+TEXT_COLOR_LEN = len(TEXT_COLORS)
+
+def color(node_id):
+    if COLORS:
+        return f"{TEXT_COLORS[node_id % TEXT_COLOR_LEN]}\33[1m"
+    else:
+        return ""
+
+def bg_fail():
+    if COLORS:
+        return f"{cm.Back.RED}{cm.Fore.WHITE}"
+    else:
+        return ""
+
+def bg_success():
+    if COLORS:
+        return f"{cm.Back.GREEN}{cm.Fore.WHITE}"
+    else:
+        return ""
+
+def bg_warning():
+    if COLORS:
+        return f"{cm.Back.YELLOW}{cm.Fore.WHITE}"
+    else:
+        return ""
+
+def bg_unknown():
+    if COLORS:
+        return f"{cm.Back.BLACK}{cm.Fore.WHITE}"
+    else:
+        return ""
+
+def reset():
+    if COLORS:
+        return f"{cm.Style.RESET_ALL}"
+    else:
+        return ""
 
 class Node(multiprocessing.Process):
     def __init__(self, id, number_of_nodes, print_lock, fail_prob, restart_prob):
@@ -67,7 +101,8 @@ class Node(multiprocessing.Process):
         self.t_cleanup = T_CLEANUP(N, T_MUL_CONST, T_ADD_CONST) * self.ones
         self.t_fail = T_FAIL(N, T_MUL_CONST, T_ADD_CONST) * self.ones
         self.t_gossip = T_GOSSIP(N)
-        self.heartbeats = np.zeros(number_of_nodes)
+        self.heartbeats = np.zeros(number_of_nodes) * UNKNOWN_NODE # A node does not know the state of other nodes at the beginning.
+        self.heartbeats[id] = ACTIVATED_NODE                       # But sets itsel to active.
         self.current_heartbeats = np.zeros(number_of_nodes)
         
         # As the paper suggests "In gossip protocols, a member forwards new information to randomly chosen members.", the communication
@@ -87,12 +122,11 @@ class Node(multiprocessing.Process):
         
     def print_state(self, *_):
         with self.print_lock:
-            print(f"Node {self.id} is {'failed.' if self.failed else 'up and running...'}")
+            print(f"{color(self.id)}Node {self.id}{reset()} is {f'{bg_fail()}not working{reset()}.' if self.failed else f'{bg_success()}working{reset()}, its perception of the network is:'}{reset()}", file=sys.stdout)
             if not self.failed:
-                print(f"Node {self.id} perception of the network is:")
                 for i, heartbeat in enumerate(self.heartbeats):
                     if i != self.id:
-                        print(f"   Node {i} is {'failed.' if heartbeat == FAILED_NODE else 'cleaned...' if heartbeat == CLEANED_NODE else 'up and running...'}")
+                        print(f"   {color(i)}Node {i}{reset()} is {f'{bg_warning()}failed' if heartbeat == FAILED_NODE else f'{bg_fail()}cleaned' if heartbeat == CLEANED_NODE else f'{bg_unknown()}unknown' if heartbeat == UNKNOWN_NODE else f'{bg_success()}running'}{reset()}.", file=sys.stdout)
     
     def register_signal_handlers(self):
         signal.signal(signal.SIGUSR1, self.print_state)
@@ -105,7 +139,7 @@ class Node(multiprocessing.Process):
         # Each member gossips at regular intervals, but the intervals are not synchronized."
         sleep_time = random.uniform(0.0, N)
         with self.print_lock:
-            print(f"Node {self.id} is waiting for {sleep_time} s befor sending first gossip messages...", file=sys.stderr)
+            print(f"{color(self.id)}Node {self.id}{reset()} is waiting for {sleep_time} s befor sending first gossip messages...", file=sys.stderr)
         time.sleep(sleep_time)
 
         current_time = time.time() # set up timestamps to current time
@@ -117,17 +151,17 @@ class Node(multiprocessing.Process):
                 if random.random() < self.restart_prob:
                     self.failed = False
                     for i in range(N):
-                        self.heartbeats[i] = CLEANED_NODE
+                        self.heartbeats[i] = UNKNOWN_NODE # Node does not know the state of other nodes after restarting.
 
-                    self.heartbeats[self.id] = 0
+                    self.heartbeats[self.id] = ACTIVATED_NODE # Sets its heartbeat to active again
                     with self.print_lock:
-                        print(f"Node {self.id} is restarting...", file=sys.stderr)
+                        print(f"{color(self.id)}Node {self.id}{reset()} is {bg_success()}restarting{reset()}...", file=sys.stdout)
             else:
                 self.send_gossip()
                 if random.random() < self.fail_prob: # Process can fail with a small probability
                     self.failed = True
                     with self.print_lock:
-                        print(f"Node {self.id} failed...", file=sys.stderr)
+                        print(f"{color(self.id)}Node {self.id}{reset()} {bg_fail()}failed{reset()}...", file=sys.stdout)
 
             try: # Waiting on socket is used instead of polling in the previous code. 
                  # Waiting up to maximum of T_GOSSIP, then new gossip message must be sent.
@@ -136,9 +170,9 @@ class Node(multiprocessing.Process):
                 current_time = sleep_start
                 while sleep_start + self.t_gossip > current_time: # waited less than for T_GOSSIP
                     self.receiver_socket.settimeout(sleep_start + self.t_gossip - current_time) # set the timeout to wait exactly for T_GOSSIP waiting to be fullfilled
-                    message = self.receiver_socket.recvfrom(65507)
+                    message = self.receiver_socket.recvfrom(65507) # expecting the gossip message is never larger than maximum UDP packet size
                     message = pickle.loads(message[0]) # deserilize
-                    self.receive_gossip(message)
+                    self.receive_gossip(message) # parse the gossip message and update heartbeats
                     current_time = time.time()
 
             except: # socket timed out, which means waiting for at least T_GOSSIP was performed
@@ -153,7 +187,7 @@ class Node(multiprocessing.Process):
             listener_id = heartbeats_numpy[random.randint(0, heartbeats_numpy.shape[0] - 1)] # select randomly another node
 
             with self.print_lock:
-                print(f"Node {self.id} gossips to node {listener_id}.")
+                print(f"{color(self.id)}Node {self.id}{reset()} gossips to {color(listener_id)}node {listener_id}{reset()}.", file=sys.stdout)
 
             self.heartbeats[self.id] += 1 # increase its heartbeat
             status = { SENDER_ID: int(self.id), HEARTBEATS: self.heartbeats }
@@ -184,9 +218,9 @@ class Node(multiprocessing.Process):
         self.heartbeats = updated_heartbeats
 
         with self.print_lock:
-            print(f"Node {self.id} received gossip from node {message[SENDER_ID]}, heartbeats: {self.heartbeats}")
+            print(f"{color(self.id)}Node {self.id}{reset()} received gossip from {color(message[SENDER_ID])}node {message[SENDER_ID]}{reset()}, heartbeats: {color(self.id)}{self.heartbeats}{reset()}", file=sys.stdout)
 
-def run_network(network, print_lock):
+def run_network(network):
     for node in network: # start nodes processes
         node.start()
     
@@ -199,16 +233,21 @@ def run_network(network, print_lock):
         node.stop()
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(line_buffering=True) # do not buffet output of print(), flush after each line
+    if not sys.stdout.isatty(): # when the output of the script is not a terminal, print without colors
+        COLORS = False
+
+    print(f"{reset()}", end="", file=sys.stdout)
     N = len(NODES_FAIL_RESTART_PROBS)
     print(f"T_gossip: {T_GOSSIP(N)} s, T_fail: {T_FAIL(N, T_MUL_CONST, T_ADD_CONST)} s, T_cleanup: {T_CLEANUP(N, T_MUL_CONST, T_ADD_CONST)} s", file=sys.stderr)
-    print_lock = multiprocessing.Lock() # process safe mutex to ensure processes don't print over each other
 
+    print_lock = multiprocessing.Lock() # process safe mutex to ensure processes don't print over each other
     network = [Node(id, N, print_lock, fail_prob, restart_prob)
                   for id, (fail_prob, restart_prob) in enumerate(NODES_FAIL_RESTART_PROBS)]
     try:
-        run_network(network, print_lock)
+        run_network(network)
     except KeyboardInterrupt: # ensure all processes terminate
         with print_lock:
-            print("\nTerminating...", file=sys.stderr)
+            print("\nTerminating...\n", file=sys.stderr)
         for node in network:
             node.stop()
