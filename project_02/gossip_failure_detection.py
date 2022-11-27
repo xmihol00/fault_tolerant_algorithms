@@ -172,7 +172,8 @@ class Node(multiprocessing.Process):
                     self.receiver_socket.settimeout(sleep_start + self.t_gossip - current_time) # set the timeout to wait exactly for T_GOSSIP waiting to be fullfilled
                     message = self.receiver_socket.recvfrom(65507) # expecting the gossip message is never larger than maximum UDP packet size
                     message = pickle.loads(message[0]) # deserilize
-                    self.receive_gossip(message) # parse the gossip message and update heartbeats
+                    if not self.failed: # process the message only of the node is running
+                        self.process_gossip(message) # parse the gossip message and update heartbeats
                     current_time = time.time()
 
             except: # socket timed out, which means waiting for at least T_GOSSIP was performed
@@ -193,7 +194,7 @@ class Node(multiprocessing.Process):
             status = { SENDER_ID: int(self.id), HEARTBEATS: self.heartbeats }
             self.gossip_socket.sendto(pickle.dumps(status), (IP, PORT_OFFSET + listener_id)) # serilize and send a message to exactly one other node - unicast
 
-    def receive_gossip(self, message):
+    def process_gossip(self, message):
         current_time = time.time()
         recieved_heartbeats = message[HEARTBEATS]
         updated_heartbeats_mask = recieved_heartbeats > self.current_heartbeats  # mask with ones, where recieved hearbeats are higher than current
