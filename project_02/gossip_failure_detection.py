@@ -11,9 +11,11 @@ import colorama as cm
 
 """
     run as:
-        python project_02/gossip_failure_detection.py                               - for colorfull print to the console,
+        python project_02/gossip_failure_detection.py                               - for colorfull print to the terminal,
         python project_02/gossip_failure_detection.py 1>gossip.txt 2>states.txt     - for separation of gossip and state messages into two files,
         python project_02/gossip_failure_detection.py 2>&1 1>all.txt                - for the whole output in a single file.
+
+    Press Ctrl+C to end the simulation gracefully before its full length is reached.
 """
 
 # constants
@@ -43,16 +45,19 @@ T_GOSSIP = lambda _: (
   #                                              B is the available bandwith.
   # In this case, on localhost the bandwith is CPU bound - usually in Gb/s, the number of processes is expected to be low and
   # the number of bytes send by each process is also low, although increasing with number of processes, as the heartbeat vector increases. 
-  # But still in this setting the gossip time using this equation is expected to be very small, therfore a minimum gossip time of 5 s is 
+  # But still in this setting the gossip time using this equation would be very small, therfore a minimum gossip time of 3 s is 
   # introduced, as the paper also suggests.
+
 T_FAIL = lambda numnodes, multiplicative_constant = 1, additive_constant = 0: (
     T_GOSSIP(numnodes) * numnodes * np.log(numnodes) * multiplicative_constant + additive_constant
 ) # From the graphs and explanations in the paper, I undetstood that 'T_FAIL' should be multiplied linearithmically by the number of nodes. 
   # By adding aditive and multiplicative constans, the 'P_misstake' can be further decreased/increased.
+
 T_CLEANUP = lambda numnodes, multiplicative_constant = 1, additive_constant = 0: (
     2 * T_FAIL(numnodes, multiplicative_constant, additive_constant)
 ) # 2 * 'T_FAIL'
 
+# node states in the heartbeat vector
 UNKNOWN_NODE = -3
 FAILED_NODE = -2
 CLEANED_NODE = -1
@@ -99,7 +104,7 @@ def reset():
     else:
         return ""
 
-class Node(multiprocessing.Process):
+class Node(multiprocessing.Process): # each node is a process
     def __init__(self, id, number_of_nodes, print_lock, fail_prob, restart_prob):
         super(Node, self).__init__()
         self.id = id
@@ -161,7 +166,7 @@ class Node(multiprocessing.Process):
         return heartbeats
     
     def register_signal_handlers(self):
-        signal.signal(signal.SIGUSR1, self.print_state)
+        signal.signal(signal.SIGUSR1, self.print_state) # signal handler to print the state of a node
         signal.siginterrupt(signal.SIGUSR1, False)
 
     def run(self):
@@ -179,7 +184,7 @@ class Node(multiprocessing.Process):
 
         while True:
             if self.failed:
-                if random.random() <= self.restart_prob:
+                if random.random() <= self.restart_prob: # Process can be restarted with a given probability.
                     self.failed = False
                     self.timestamps_reset()
                     for i in range(N):
@@ -197,7 +202,7 @@ class Node(multiprocessing.Process):
                     with self.print_lock:
                         print(f"{color(self.id)}Node {self.id}{reset()} {bg_fail()}failed{reset()}.", file=sys.stderr)
 
-            try: # Waiting on a socket is used instead of polling, which was used in the previous code. 
+            try: # Waiting on a single socket is used instead of polling multiple sockets, which was used in the previous code. 
                  # Combined waiting up to T_GOSSIP, then new gossip message must be sent.
                 sleep_start = time.time() # timestamp of the start of the waiting
                 current_time = sleep_start
@@ -214,7 +219,7 @@ class Node(multiprocessing.Process):
     
     def send_gossip(self):
         heartbeats_numpy = np.array(self.heartbeats)
-        heartbeats_numpy[self.id] = CLEANED_NODE # mark self as cleaned to exclude the possibility of sending messages to itself
+        heartbeats_numpy[self.id] = CLEANED_NODE # Mark self as cleaned to exclude the possibility of sending messages to itself.
         heartbeats_numpy = np.where((heartbeats_numpy != FAILED_NODE) & (heartbeats_numpy != CLEANED_NODE))[0] # exclude failed and cleaned processes
 
         if heartbeats_numpy.shape[0]: # only send message if there is any listener
@@ -227,7 +232,7 @@ class Node(multiprocessing.Process):
             status = { SENDER_ID: int(self.id), HEARTBEATS: self.heartbeats }
             self.gossip_socket.sendto(
                 pickle.dumps(status), (IP, PORT_OFFSET + listener_id)
-            ) # serilize and send a message to one specific node - unicast, the previous code used some kind of broadcast
+            ) # serilize and send a message to one specific node - unicast
 
     def process_gossip(self, message):
         current_time = time.time()
@@ -238,9 +243,11 @@ class Node(multiprocessing.Process):
         self.fail_timestamps += current_time * updated_heartbeats_mask # set masked timestamps to current time
 
         self.cleanup_timestamps *= ~updated_heartbeats_mask # mask out changed timestamps
-        self.cleanup_timestamps += current_time * updated_heartbeats_mask # set masked indices to current time
+        self.cleanup_timestamps += current_time * updated_heartbeats_mask # set masked timestamps to current time
 
-        updated_heartbeats = np.max(np.stack((self.last_heartbeats, recieved_heartbeats)), axis=0).astype(np.float64)
+        updated_heartbeats = np.max(
+            np.stack((self.last_heartbeats, recieved_heartbeats)
+        ), axis=0).astype(np.float64) # merge the heartbeat lists and adopt the maximum value for each member
 
         cleaned_processes_mask = self.cleanup_timestamps < (current_time - self.t_cleanup) # mask, where heartbeats weren't updated for T_CLEANUP
         updated_heartbeats *= ~cleaned_processes_mask # mask out cleaned processes
@@ -271,7 +278,7 @@ def run_network(network, print_lock):
         node.stop()
 
 if __name__ == "__main__":
-    sys.stdout.reconfigure(line_buffering=True) # Do not buffet output of print(), flush after each line.
+    sys.stdout.reconfigure(line_buffering=True) # Do not buffer output of print(), flush after each line.
     if not sys.stdout.isatty(): # When the output of the script is not a terminal, print without colors.
         COLORS = False
 
