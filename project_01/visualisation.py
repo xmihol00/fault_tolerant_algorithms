@@ -139,5 +139,7 @@ if __name__ == "__main__":
     label_adjustments = [-0.22, 0.05, -0.12, 0.15] # make sure the labels don't overlap
 
     anim = animation.FuncAnimation(figure, update, fargs=[events_coordinates, events_plots, events_names, events_indices, recieve_events_coordinates, recieve_events_plots], 
-                                interval=25, blit=True, repeat=False) # animate the plot
+                                   interval=25, blit=True, repeat=False, frames=500) # animate the plot
     plt.show()
+    
+    #anim.save("visualisation.avi", writer="ffmpeg", fps=30)
