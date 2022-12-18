@@ -119,9 +119,7 @@ class Mouse(cellular.Agent):
 
         self.graph = None
         self.shortest_path_changed = True
-        self.directions = [(0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1),
-                           (0, -2), (2, -2), (2, 0), (2, 2), (0, 2), (-2, 2), (-2, 0), (-2, -2),
-                           (2, 1), (2, -1), (-2, 1), (-2, -1), (1, 2), (-1, 2), (1, -2), (-1, -2)]
+        self.directions = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]
         
     def createGraph(self):
         self.graph = nx.Graph()
@@ -177,37 +175,38 @@ class Mouse(cellular.Agent):
         elif self.canBeEaten():
             self.moveAwayFromCat()
         else:
-
             self.cell = self.nodeToCell(self.shortest_path.pop())
             self.shortest_path_changed = False
 
     def canBeEaten(self):
-        for x_dir, y_dir in self.directions:
-            if self.getCell(self.cell.x + x_dir, self.cell.y + y_dir) == cat.cell:
-                return True
-        return False
+        return nx.shortest_path_length(self.graph, self.cellToNode(self.cell), self.cellToNode(cat.cell)) <= 3
     
     def canBeImidiatelyEaten(self):
-        for x_dir, y_dir in self.directions[0:8]:
-            if self.getCell(self.cell.x + x_dir, self.cell.y + y_dir) == cat.cell:
-                return True
-        return False
+        return nx.shortest_path_length(self.graph, self.cellToNode(self.cell), self.cellToNode(cat.cell)) <= 2
     
     def moveAwayFromCat(self):
         current_cell = self.cell
-        best_cell = self.cell
-        best_path = sys.maxint
+        save_cell = None
+        best_cell = None
+        best_distance = sys.maxsize
         for x_dir, y_dir in self.directions:
-            cell = self.getCell(self.cell.x + x_dir, self.cell.y + y_dir)
-            if cell and cell != cat.cell:
+            cell = self.getCell(current_cell.x + x_dir, current_cell.y + y_dir)
+            if cell:
                 self.cell = cell
-                if self.canBeImidiatelyEaten():
-                    self.cell = current_cell
-                else:
-                    # TODO
-                    return
-        
-        self.cell = best_cell
+                if not self.canBeEaten():
+                    distance_to_cheese = nx.shortest_path_length(self.graph, self.cellToNode(self.cell), self.cellToNode(cheese.cell))
+                    if distance_to_cheese < best_distance:
+                        best_distance = distance_to_cheese
+                        best_cell = cell
+                elif not self.canBeImidiatelyEaten():
+                    save_cell = cell
+
+        if best_cell:
+            self.cell = best_cell
+        elif save_cell:
+            self.cell = save_cell
+        else:
+            self.cell = current_cell
 
     def calcState(self):
         def cellvalue(cell):
@@ -227,7 +226,7 @@ cheese = Cheese()
 mouse = Mouse()
 cat = Cat()
 
-world = cellular.World(Cell, directions=directions, filename='world_empty.txt')
+world = cellular.World(Cell, directions=directions, filename='world_walls.txt')
 world.age = 0
 
 world.addAgent(cheese, cell=pickRandomLocation())   # assign random cell, otherwise agent can be spawned inside wall
