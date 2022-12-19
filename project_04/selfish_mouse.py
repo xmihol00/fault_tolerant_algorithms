@@ -302,20 +302,82 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
 
             if world.age % STATS_COLLECTION == 0:
                 print ("{:d}, e: {:0.2f}, W: {:d}, L: {:d}".format(world.age, mouse.ai.epsilon, mouse.fed, mouse.eaten))
-                games = mouse.fed + mouse.eaten
-                stats[0][idx] = mouse.fed / games
-                stats[1][idx] = mouse.eaten / games
-                stats[2][idx] = STATS_COLLECTION / games # average lengh of a game
+                stats[0][idx] = mouse.fed
+                stats[1][idx] = mouse.eaten
+                stats[2][idx] = mouse.fed + mouse.eaten
                 idx += 1
 
                 mouse.eaten = 0
                 mouse.fed = 0
-        world_stats[j] = (stats.mean(axis=1), stats.std(axis=1), mouse_name)
+        world_stats[j] = (stats, mouse_name)
     
     figure, axis = plt.subplots(2, 2)
     figure.set_size_inches(12, 10)
-    figure.suptitle(f"{world_name} statistics per {STATS_LEN} runs of {STATS_COLLECTION} updates")
-    lables = ["fed", "eaten", "game lenhth"]
+    figure.suptitle(f"Absolute statistics of {STATS_LEN} runs per {STATS_COLLECTION} updates in world {world_name}")
+    lables = ["fed", "eaten", "games"]
+    x_positions = [0, 1, 2]
+    colors = ['m', 'c']
+    for i in range(2):
+        heights = world_stats[i][0].mean(axis=1)
+        height_offset = heights.max() / 100
+        axis[0, i].bar(lables, heights, width=0.5, color=colors[i])
+        axis[0, i].set_title(f"{world_stats[i][1]} - mean")
+        axis[0, i].set_yticks([], [])
+        axis[0, i].set_frame_on(False)
+        for count, x_pos in zip(heights, x_positions):
+            axis[0, i].annotate(f"{count:.2f}", (x_pos, count + height_offset), ha="center")
+
+        heights = world_stats[i][0].std(axis=1)
+        height_offset = heights.max() / 100
+        axis[1, i].bar(lables, heights, width=0.5, color=colors[i])
+        axis[1, i].set_title(f"{world_stats[i][1]} - stddev")
+        axis[1, i].set_yticks([], [])
+        axis[1, i].set_frame_on(False)
+        for count, x_pos in zip(heights, x_positions):
+            axis[1, i].annotate(f"{count:.2f}", (x_pos, count + height_offset), ha="center")
+    plt.show()
+    
+    figure, axis = plt.subplots(2, 2)
+    figure.set_size_inches(12, 10)
+    figure.suptitle(f"Relative statistics of {STATS_LEN} runs per {STATS_COLLECTION} updates in world {world_name}")
+    lables = ["fed", "eaten", "updates per games"]
+    x_positions = [0, 1, 2]
+    colors = ['m', 'c']
+
+    world_relative_stats = []
+    for i in range(2):
+        stats = np.zeros_like(world_stats[i][0])
+        stats[:2, :] = world_stats[i][0][:2, :] / world_stats[i][0][2, :]
+        stats[2, :] = STATS_COLLECTION / world_stats[i][0][2, :]
+        world_relative_stats.append(stats)
+
+    for i in range(2):
+        heights = world_relative_stats[i].mean(axis=1)
+        height_offset = heights.max() / 100
+        axis[0, i].bar(lables, heights, width=0.5, color=colors[i])
+        axis[0, i].set_title(f"{world_stats[i][1]} - mean")
+        axis[0, i].set_yticks([], [])
+        axis[0, i].set_frame_on(False)
+        for count, x_pos in zip(heights[:2], x_positions[:2]):
+            axis[0, i].annotate(f"{count * 100:.2f} %", (x_pos, count + height_offset), ha="center")
+        axis[0, i].annotate(f"{heights[2]:.2f}", (x_positions[2], heights[2] + height_offset), ha="center")
+
+        heights = world_relative_stats[i].std(axis=1)
+        height_offset = heights.max() / 100
+        axis[1, i].bar(lables, heights, width=0.5, color=colors[i])
+        axis[1, i].set_title(f"{world_stats[i][1]} - stddev")
+        axis[1, i].set_yticks([], [])
+        axis[1, i].set_frame_on(False)
+        for count, x_pos in zip(heights[:2], x_positions[:2]):
+            axis[1, i].annotate(f"{count * 100:.2f} %", (x_pos, count + height_offset), ha="center")
+        axis[1, i].annotate(f"{heights[2]:.2f}", (x_positions[2], heights[2] + height_offset), ha="center")
+    plt.show()
+    exit(0)
+
+    figure, axis = plt.subplots(2, 2)
+    figure.set_size_inches(12, 10)
+    figure.suptitle(f"Absolute statistics per {STATS_LEN} runs of {STATS_COLLECTION} updates in world {world_name}")
+    lables = ["fed", "eaten", "games"]
     x_positions = [0, 1, 2]
     titles = ["mean", "stddev"]
     colors = ['m', 'c']
