@@ -1,5 +1,5 @@
 import random
-import cellular
+import gh_cellular_fixed
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
@@ -68,7 +68,7 @@ def pickRandomLocation():
             return cell
 
 
-class Cell(cellular.Cell):
+class Cell(gh_cellular_fixed.Cell):
     wall = False
 
     def colour(self):
@@ -84,7 +84,7 @@ class Cell(cellular.Cell):
             self.wall = False
 
 
-class Cat(cellular.Agent):
+class Cat(gh_cellular_fixed.Agent):
     cell = None
     score = 0
     colour = 'red'
@@ -97,13 +97,13 @@ class Cat(cellular.Agent):
                 self.goInDirection(random.randrange(directions))
 
 
-class Cheese(cellular.Agent):
+class Cheese(gh_cellular_fixed.Agent):
     colour = 'green'
 
     def update(self):
         pass
 
-class OriginalMouse(cellular.Agent):
+class OriginalMouse(gh_cellular_fixed.Agent):
     colour = 'gray'
 
     def __init__(self):
@@ -163,7 +163,7 @@ class OriginalMouse(cellular.Agent):
         return tuple([cellvalue(self.world.getWrappedCell(self.cell.x + j, self.cell.y + i))
                       for i,j in lookcells])
 
-class ImprovedMouse(cellular.Agent):
+class ImprovedMouse(gh_cellular_fixed.Agent):
     colour = 'gray'
 
     def __init__(self):
@@ -287,7 +287,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
         print(f"\n{world_name}, {mouse_name}:")
         cat = Cat()
         cheese = Cheese()
-        world = cellular.World(Cell, directions=directions, filename=world_filename)
+        world = gh_cellular_fixed.World(Cell, directions=directions, filename=world_filename)
         world.age = 0
 
         world.addAgent(cheese, cell=pickRandomLocation())   # assign random cell, otherwise agent can be spawned into a wall
@@ -335,6 +335,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
         axis[1, i].set_frame_on(False)
         for count, x_pos in zip(heights, x_positions):
             axis[1, i].annotate(f"{count:.2f}", (x_pos, count + height_offset), ha="center")
+    plt.savefig(f"absolute_stats_{world_name.lower().replace(' ', '_')}")
     plt.show()
     
     figure, axis = plt.subplots(2, 2)
@@ -371,36 +372,79 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
         for count, x_pos in zip(heights[:2], x_positions[:2]):
             axis[1, i].annotate(f"{count * 100:.2f} %", (x_pos, count + height_offset), ha="center")
         axis[1, i].annotate(f"{heights[2]:.2f}", (x_positions[2], heights[2] + height_offset), ha="center")
+    plt.savefig(f"relative_stats_{world_name.lower().replace(' ', '_')}")
     plt.show()
-    exit(0)
 
     figure, axis = plt.subplots(2, 2)
-    figure.set_size_inches(12, 10)
-    figure.suptitle(f"Absolute statistics per {STATS_LEN} runs of {STATS_COLLECTION} updates in world {world_name}")
-    lables = ["fed", "eaten", "games"]
-    x_positions = [0, 1, 2]
-    titles = ["mean", "stddev"]
-    colors = ['m', 'c']
-    for i, j in [(0, 0), (0, 1), (1, 0), (1, 1)]:
-        heights = world_stats[i][j]
-        height_offset = heights.max() / 100
-        axis[j, i].bar(lables, heights, width=0.5, color=colors[i])
-        axis[j, i].set_title(f"{world_stats[i][2]} - {titles[j]}")
-        axis[j, i].set_yticks([], [])
-        axis[j, i].set_frame_on(False)
-        for count, x_pos in zip(heights, x_positions):
-            axis[j, i].annotate(f"{count:.2f}", (x_pos, count + height_offset), ha="center")
+    figure.set_size_inches(10, 10)
+    figure.suptitle(f"Improvements in world {world_name}")
+    colors = ['g', 'r']
+    labels = ["fed", "eaten"]
+
+    fed_mean_QL = world_stats[0][0][0, :].mean()
+    fed_mean_impr = world_stats[1][0][0, :].mean()
+    eaten_mean_QL = world_stats[0][0][1, :].mean()
+    eaten_mean_impr = world_stats[1][0][1, :].mean()
+    fed_improvement = fed_mean_impr - fed_mean_QL
+    eaten_improvement = eaten_mean_QL - eaten_mean_impr
+    fed_significant_improvement = fed_mean_impr - fed_mean_QL - world_stats[0][0][0, :].std() * 2
+    eaten_significant_improvement = eaten_mean_QL - world_stats[0][0][1, :].std() * 2 - eaten_mean_QL
+
+    offset = fed_improvement / 100
+    axis[0, 0].set_title("Abosolute improvements of the mean")
+    axis[0, 0].bar(labels, [fed_improvement, eaten_improvement], 
+                   color=[colors[int(fed_improvement < 0)], colors[int(eaten_improvement < 0)]])
+    axis[0, 0].set_yticks([], [])
+    axis[0, 0].set_frame_on(False)
+    axis[0, 0].annotate(f"{fed_improvement:.2f}", (0, fed_improvement + offset), ha="center")
+    axis[0, 0].annotate(f"{eaten_improvement:.2f}", (1, (eaten_improvement + offset) if eaten_improvement >= 0 else 
+                                                        (eaten_improvement - offset * 0.5)), 
+                        ha="center", va="top" if eaten_improvement < 0 else "baseline")
+
+    offset = fed_significant_improvement / 100
+    axis[0, 1].set_title("Absolute significat improvements of the mean")
+    axis[0, 1].bar(labels, [fed_significant_improvement, eaten_significant_improvement], 
+                    color=[colors[int(fed_significant_improvement < 0)], colors[int(eaten_significant_improvement < 0)]])
+    axis[0, 1].set_yticks([], [])
+    axis[0, 1].set_frame_on(False)
+    axis[0, 1].annotate(f"{fed_significant_improvement:.2f}", (0, fed_significant_improvement + offset), ha="center")
+    axis[0, 1].annotate(f"{eaten_significant_improvement:.2f}", (1, (eaten_significant_improvement + offset) if eaten_significant_improvement >= 0 else 
+                                                                    (eaten_significant_improvement - offset * 0.5)), 
+                        ha="center", va="top" if eaten_significant_improvement < 0 else "baseline")
+    
+    fed_mean_QL = world_relative_stats[0][0, :].mean()
+    fed_mean_impr = world_relative_stats[1][0, :].mean()
+    eaten_mean_QL = world_relative_stats[0][1, :].mean()
+    eaten_mean_impr = world_relative_stats[1][1, :].mean()
+    fed_improvement = fed_mean_impr - fed_mean_QL
+    eaten_improvement = eaten_mean_QL - eaten_mean_impr
+    fed_significant_improvement = fed_mean_impr - world_relative_stats[0][1, :].std() * 2
+    eaten_significant_improvement = eaten_mean_QL - world_relative_stats[1][1, :].std() * 2 - eaten_mean_QL
+
+    offset = fed_improvement / 100
+    axis[1, 0].set_title("Relative improvements of the mean")
+    axis[1, 0].bar(labels, [fed_improvement, eaten_improvement], 
+                    color=[colors[int(fed_improvement < 0)], colors[int(eaten_improvement < 0)]])
+    axis[1, 0].set_yticks([], [])
+    axis[1, 0].set_frame_on(False)
+    axis[1, 0].annotate(f"{fed_improvement * 100:.2f} %", (0, fed_improvement + offset), ha="center")
+    axis[1, 0].annotate(f"{eaten_improvement * 100:.2f} %", (1, (eaten_improvement + offset) if eaten_improvement >= 0 else 
+                                                                (eaten_improvement - offset * 0.5)), ha="center", 
+                        va="top" if eaten_improvement < 0 else "baseline")
+
+    offset = fed_significant_improvement / 100
+    axis[1, 1].set_title("Relative significat improvements of the mean")
+    axis[1, 1].bar(labels, [fed_significant_improvement, eaten_significant_improvement], 
+                    color=[colors[int(fed_significant_improvement < 0)], colors[int(eaten_significant_improvement < 0)]])
+    axis[1, 1].set_yticks([], [])
+    axis[1, 1].set_frame_on(False)
+    axis[1, 1].annotate(f"{fed_significant_improvement * 100:.2f} %", (0, fed_significant_improvement + offset), ha="center")
+    axis[1, 1].annotate(f"{eaten_significant_improvement * 100:.2f} %", (1, (eaten_significant_improvement + offset) if eaten_significant_improvement >= 0 else 
+                                                                    (eaten_significant_improvement - offset * 0.5)), 
+                        ha="center", va="top" if eaten_significant_improvement < 0 else "baseline")
+    plt.savefig(f"improvements_{world_name.lower().replace(' ', '_')}")
     plt.show()
 
-    figure, axis = plt.subplots(1, 1)
-    figure.set_size_inches(10, 10)
-    figure.suptitle(f"{world_name} significant improvements")
-    fed_significant_improvement = world_stats[1][0][0] - world_stats[0][0][0] - world_stats[0][1][0] * 2
-    eaten_significant_improvement = world_stats[0][0][1] - world_stats[0][1][1] * 2 - world_stats[1][0][1]
-    colors = ['g', 'r']
-    axis.bar(["fed", "eaten"], [fed_significant_improvement, eaten_significant_improvement], 
-             color=[colors[int(fed_significant_improvement < 0)], colors[int(eaten_significant_improvement < 0)]])
-    plt.show()
 
 world.display.activate(size=40)
 world.display.delay = 1
