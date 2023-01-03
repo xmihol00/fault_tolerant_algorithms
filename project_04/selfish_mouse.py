@@ -163,25 +163,19 @@ class OriginalMouse(gh_cellular_fixed.Agent):
         return tuple([cellvalue(self.world.getWrappedCell(self.cell.x + j, self.cell.y + i))
                       for i,j in lookcells])
 
-class ImprovedMouse(gh_cellular_fixed.Agent):
+class ImprovedMouse(gh_cellular_fixed.Agent): # create new class in order to compare with the Q learning mouse
     colour = 'gray'
 
     def __init__(self):
-        self.ai = None
-        self.ai = QLearn(actions=range(directions),
-                                alpha=0.1, gamma=0.9, epsilon=0.1)
+        self.ai = QLearn(actions=range(directions), alpha=0.1, gamma=0.9, epsilon=0.1)
         self.eaten = 0
         self.fed = 0
-        self.lastState = None
-        self.lastAction = None
-        self.fed_reward = 50
-        self.eaten_reward = -100
 
         self.graph = None
         self.shortest_path_changed = True
         self.directions = [(1, 1), (1, -1), (-1, 1), (-1, -1), (0, 1), (0, -1), (1, 0), (-1, 0)]
         
-    def createGraph(self):
+    def createGraph(self): # Make the navigation of the world a graph problem, where cells without walls are nodes and posible paths between cells are edges.
         self.graph = nx.Graph()
         for row_of_cells in self.world.grid:
             for cell in row_of_cells:
@@ -189,8 +183,8 @@ class ImprovedMouse(gh_cellular_fixed.Agent):
                     new_node = self.cellToNode(cell)
                     self.graph.add_node(new_node) # add a new node to the graph, if it is not a wall
 
-                    for x_dir, y_dir in [(-1, 0), (-1, -1), (0, -1), (1, -1)]: # connect a new node to already existing nodes in the graph
-                        existing_cell = self.getCell(cell.x + x_dir, cell.y + y_dir)
+                    for x_dir, y_dir in [(-1, 0), (-1, -1), (0, -1), (1, -1)]: # try to cconnect the new node to already existing nodes in the graph
+                        existing_cell = self.getPathCell(cell.x + x_dir, cell.y + y_dir) 
                         if existing_cell:
                             self.graph.add_edge(new_node, self.cellToNode(existing_cell))
 
@@ -205,13 +199,13 @@ class ImprovedMouse(gh_cellular_fixed.Agent):
     def nodeToCell(self, node):
         return self.world.grid[node[1]][node[0]]
 
-    def getCell(self, x, y):
+    def getPathCell(self, x, y):
         if x < 0 or y < 0 or y >= len(world.grid) or x >= len(world.grid[y]):
-            return None
+            return None # referenced cell is not in the grid
         
         cell = world.grid[y][x]
         if cell.wall:
-            return None
+            return None # cell is a wall
         
         return cell
 
@@ -219,38 +213,39 @@ class ImprovedMouse(gh_cellular_fixed.Agent):
         if not self.graph:
             self.createGraph()
 
-        if self.shortest_path_changed:
+        if self.shortest_path_changed: # mouse diverged from the current shortest path
+            # shortest path from the current position of the mouse to cheese (a list of nodes to be visited)
             self.shortest_path = nx.shortest_path(self.graph, self.cellToNode(self.cell), self.cellToNode(cheese.cell))
-            self.shortest_path.reverse() 
-            self.shortest_path.pop()
+            self.shortest_path.reverse() # ensure values can be popped from the list, when step closer to the chees is taken
+            self.shortest_path.pop() # remove the current node from the list
             self.shortest_path_changed = False
 
-        self.shortest_path_changed = True
+        self.shortest_path_changed = True # preemtively mark the current shortest path as invalid
         if self.cell == cheese.cell:
             self.fed += 1
-            cheese.cell = pickRandomLocation()
+            cheese.cell = pickRandomLocation() # respawn the cheese
         elif self.cell == cat.cell:
             self.eaten += 1
-            self.cell = pickRandomLocation()
+            self.cell = pickRandomLocation() # respawn the mouse
         elif (nx.shortest_path_length(self.graph, self.cellToNode(self.cell), self.cellToNode(cat.cell)) < 3 and 
               nx.shortest_path_length(self.graph, self.cellToNode(self.cell), self.cellToNode(cheese.cell)) > 1):
               # the mouse is gready, when it can eat the cheese, it will eat it also if it means dying afterwards
             self.moveAwayFromCat()
         else:
-            self.cell = self.nodeToCell(self.shortest_path.pop()) # navigating to the cheese
-            self.shortest_path_changed = False
+            self.cell = self.nodeToCell(self.shortest_path.pop()) # navigating to the cheese based on the shortest path
+            self.shortest_path_changed = False # stay on the current shortest path
     
     def moveAwayFromCat(self):
         current_cell = self.cell
-        escape_cells = [[] for _ in range(4)]
+        escape_cells = [[] for _ in range(4)] # divide escape cells in to categories based on their distance from cat
         best_cat_distance = 0
 
         for x_dir, y_dir in self.directions:
-            cell = self.getCell(current_cell.x + x_dir, current_cell.y + y_dir)
+            cell = self.getPathCell(current_cell.x + x_dir, current_cell.y + y_dir)
             if cell:
                 self.cell = cell
                 cat_distance = nx.shortest_path_length(self.graph, self.cellToNode(self.cell), self.cellToNode(cat.cell))
-                if cat_distance >= best_cat_distance:
+                if cat_distance >= best_cat_distance: # take all cells with the best distance from the cat
                     best_cat_distance = cat_distance
                     escape_cells[best_cat_distance].append(cell) # select the cells, which are furthest from the cat 
 
@@ -292,9 +287,10 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
         world = gh_cellular_fixed.World(Cell, directions=directions, filename=world_filename)
         world.age = 0
 
-        world.addAgent(cheese, cell=pickRandomLocation())   # assign random cell, otherwise agent can be spawned into a wall
-        world.addAgent(cat, cell=pickRandomLocation())      # assign random cell, otherwise agent can be spawned into a wall
-        world.addAgent(mouse, cell=pickRandomLocation())    # assign random cell, otherwise agent can be spawned into a wall
+        # assign random cell, otherwise agent can be spawned into a wall
+        world.addAgent(cheese, cell=pickRandomLocation())   
+        world.addAgent(cat, cell=pickRandomLocation())
+        world.addAgent(mouse, cell=pickRandomLocation())
 
         stats = np.zeros((3, STATS_LEN))
         endAge = world.age + RUNS
@@ -313,6 +309,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
                 mouse.fed = 0
         world_stats[j] = (stats, mouse_name)
     
+    ########################################### PLOTS ###########################################
     figure, axis = plt.subplots(2, 2)
     figure.set_size_inches(12, 10)
     figure.suptitle(f"Absolute statistics of {STATS_LEN} runs per {STATS_COLLECTION} updates in world {world_name}")
@@ -333,10 +330,12 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
         # plot of the absolute standard deviation
         heights = world_stats[i][0].std(axis=1)
         height_offset = heights.max() / 100
+        # make the plot pretty
         axis[1, i].bar(lables, heights, width=0.5, color=colors[i])
         axis[1, i].set_title(f"{world_stats[i][1]} - stddev")
         axis[1, i].set_yticks([], [])
         axis[1, i].set_frame_on(False)
+        # add custom annotations
         for count, x_pos in zip(heights, x_positions):
             axis[1, i].annotate(f"{count:.2f}", (x_pos, count + height_offset), ha="center")
     plt.savefig(f"absolute_stats_{world_name.lower().replace(' ', '_')}")
@@ -360,10 +359,12 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
         # plot of the relative mean
         heights = world_relative_stats[i].mean(axis=1)
         height_offset = heights.max() / 100
+        # make the plot pretty
         axis[0, i].bar(lables, heights, width=0.5, color=colors[i])
         axis[0, i].set_title(f"{world_stats[i][1]} - mean")
         axis[0, i].set_yticks([], [])
         axis[0, i].set_frame_on(False)
+        # add custom annotations
         for count, x_pos in zip(heights[:2], x_positions[:2]):
             axis[0, i].annotate(f"{count * 100:.2f} %", (x_pos, count + height_offset), ha="center")
         axis[0, i].annotate(f"{heights[2]:.2f}", (x_positions[2], heights[2] + height_offset), ha="center")
@@ -391,6 +392,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
     fed_mean_impr = world_stats[1][0][0, :].mean()
     eaten_mean_QL = world_stats[0][0][1, :].mean()
     eaten_mean_impr = world_stats[1][0][1, :].mean()
+    # calculate the improvements
     fed_improvement = fed_mean_impr - fed_mean_QL
     eaten_improvement = eaten_mean_QL - eaten_mean_impr
     fed_significant_improvement = fed_mean_impr - fed_mean_QL - world_stats[0][0][0, :].std() * 2
@@ -422,9 +424,10 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
     fed_mean_impr = world_relative_stats[1][0, :].mean()
     eaten_mean_QL = world_relative_stats[0][1, :].mean()
     eaten_mean_impr = world_relative_stats[1][1, :].mean()
+    # calculate the improvements
     fed_improvement = fed_mean_impr - fed_mean_QL
     eaten_improvement = eaten_mean_QL - eaten_mean_impr
-    fed_significant_improvement = fed_mean_impr - world_relative_stats[0][1, :].std() * 2
+    fed_significant_improvement = fed_mean_impr - world_relative_stats[0][1, :].std() * 2 
     eaten_significant_improvement = eaten_mean_QL - world_relative_stats[1][1, :].std() * 2 - eaten_mean_QL
 
     offset = fed_improvement / 100
@@ -435,7 +438,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
     axis[1, 0].set_frame_on(False)
     axis[1, 0].annotate(f"{fed_improvement * 100:.2f} %", (0, fed_improvement + offset), ha="center")
     axis[1, 0].annotate(f"{eaten_improvement * 100:.2f} %", (1, (eaten_improvement + offset) if eaten_improvement >= 0 else 
-                                                                (eaten_improvement - offset * 0.5)), ha="center", 
+                                                                (eaten_improvement - offset * 0.5)), ha="center",
                         va="top" if eaten_improvement < 0 else "baseline")
 
     offset = fed_significant_improvement / 100
@@ -450,6 +453,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
                         ha="center", va="top" if eaten_significant_improvement < 0 else "baseline")
     plt.savefig(f"improvements_{world_name.lower().replace(' ', '_')}")
     plt.show()
+    ########################################### END OF PLOTS ###########################################
 
 
 world.display.activate(size=40)
