@@ -187,9 +187,9 @@ class ImprovedMouse(gh_cellular_fixed.Agent):
             for cell in row_of_cells:
                 if not cell.wall:
                     new_node = self.cellToNode(cell)
-                    self.graph.add_node(new_node)
+                    self.graph.add_node(new_node) # add a new node to the graph, if it is not a wall
 
-                    for x_dir, y_dir in [(-1, 0), (-1, -1), (0, -1), (1, -1)]:
+                    for x_dir, y_dir in [(-1, 0), (-1, -1), (0, -1), (1, -1)]: # connect a new node to already existing nodes in the graph
                         existing_cell = self.getCell(cell.x + x_dir, cell.y + y_dir)
                         if existing_cell:
                             self.graph.add_edge(new_node, self.cellToNode(existing_cell))
@@ -221,7 +221,7 @@ class ImprovedMouse(gh_cellular_fixed.Agent):
 
         if self.shortest_path_changed:
             self.shortest_path = nx.shortest_path(self.graph, self.cellToNode(self.cell), self.cellToNode(cheese.cell))
-            self.shortest_path.reverse()
+            self.shortest_path.reverse() 
             self.shortest_path.pop()
             self.shortest_path_changed = False
 
@@ -234,9 +234,10 @@ class ImprovedMouse(gh_cellular_fixed.Agent):
             self.cell = pickRandomLocation()
         elif (nx.shortest_path_length(self.graph, self.cellToNode(self.cell), self.cellToNode(cat.cell)) < 3 and 
               nx.shortest_path_length(self.graph, self.cellToNode(self.cell), self.cellToNode(cheese.cell)) > 1):
+              # the mouse is gready, when it can eat the cheese, it will eat it also if it means dying afterwards
             self.moveAwayFromCat()
         else:
-            self.cell = self.nodeToCell(self.shortest_path.pop())
+            self.cell = self.nodeToCell(self.shortest_path.pop()) # navigating to the cheese
             self.shortest_path_changed = False
     
     def moveAwayFromCat(self):
@@ -251,7 +252,7 @@ class ImprovedMouse(gh_cellular_fixed.Agent):
                 cat_distance = nx.shortest_path_length(self.graph, self.cellToNode(self.cell), self.cellToNode(cat.cell))
                 if cat_distance >= best_cat_distance:
                     best_cat_distance = cat_distance
-                    escape_cells[best_cat_distance].append(cell)
+                    escape_cells[best_cat_distance].append(cell) # select the cells, which are furthest from the cat 
 
         best_escape_cell = current_cell
         best_cheese_distance = sys.maxsize
@@ -259,7 +260,7 @@ class ImprovedMouse(gh_cellular_fixed.Agent):
             distance_to_cheese = nx.shortest_path_length(self.graph, self.cellToNode(escape_cell), self.cellToNode(cheese.cell))
             if distance_to_cheese < best_cheese_distance:
                 best_cheese_distance = distance_to_cheese
-                best_escape_cell = escape_cell
+                best_escape_cell = escape_cell # select the closes cell to the cheese from the furthest cells from the cat
 
         self.cell = best_escape_cell
 
@@ -281,6 +282,7 @@ RUNS = 100_000
 STATS_COLLECTION = 10_000
 STATS_LEN = RUNS // STATS_COLLECTION
 
+# run different mice in different worlds and collent stats
 for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_walls.txt", "World with walls")]:
     world_stats = [None, None]
     for j, (mouse, mouse_name) in enumerate([(OriginalMouse(), "Q-learning mouse"), (ImprovedMouse(), "Improved mouse")]):
@@ -318,6 +320,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
     x_positions = [0, 1, 2]
     colors = ['m', 'c']
     for i in range(2):
+        # plot of the absolute mean
         heights = world_stats[i][0].mean(axis=1)
         height_offset = heights.max() / 100
         axis[0, i].bar(lables, heights, width=0.5, color=colors[i])
@@ -327,6 +330,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
         for count, x_pos in zip(heights, x_positions):
             axis[0, i].annotate(f"{count:.2f}", (x_pos, count + height_offset), ha="center")
 
+        # plot of the absolute standard deviation
         heights = world_stats[i][0].std(axis=1)
         height_offset = heights.max() / 100
         axis[1, i].bar(lables, heights, width=0.5, color=colors[i])
@@ -353,6 +357,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
         world_relative_stats.append(stats)
 
     for i in range(2):
+        # plot of the relative mean
         heights = world_relative_stats[i].mean(axis=1)
         height_offset = heights.max() / 100
         axis[0, i].bar(lables, heights, width=0.5, color=colors[i])
@@ -363,6 +368,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
             axis[0, i].annotate(f"{count * 100:.2f} %", (x_pos, count + height_offset), ha="center")
         axis[0, i].annotate(f"{heights[2]:.2f}", (x_positions[2], heights[2] + height_offset), ha="center")
 
+        # plot of the relative standard deviation
         heights = world_relative_stats[i].std(axis=1)
         height_offset = heights.max() / 100
         axis[1, i].bar(lables, heights, width=0.5, color=colors[i])
