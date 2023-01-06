@@ -27,3 +27,44 @@ Confluence is a property of an operation, which ensures deterministic output giv
 3. Routing - in TN routing is usually based on finding a link, which can transfer a message the fastest, whereas in CN the fastest link might not be the optimal, as there are also other concerns like transaction fees or privacy.
 4. Rewards/incentives - in TN there are usually centralizes organizations, which pay for resources, whereas in CN the rewards for resources are incorporated in the protocol, as there is no centralization.
 5. Security - in CN additional sercurity mechanisums must be implemented to ensure correct  function of the consensus layer. 
+
+## Q6
+Possibility of forks makes the Blockchain networks more vulnerable to attacks, as some misbehaving nodes may try to deliberately create forks. After a fork happens some nodes are wasting resources by mining block on the blockchain, which will be later invalidated. Transactions, which were in the invalidated chain, must be re-inserted in the mempool for inclusion in a next block, which prolongs the time needed for confirmation of a transaction.
+
+## Q7
+The main significance of the off-chain P2P networks is in the making the on-chain networks more scalable by not publishing every transacion on the blockchain and therefore reducing the load on the on-chain networks. They solve the problem of scalability by creating private state channels over a P2P medium. Two or more parties can communicate over the private state channel using pre-set rules, by which they can make arbitrary number of intermidiate transactions, which are then submitted as a single transaction to the on-chain network and therefore written on the blockchain, when any of the involved parties wishes to close the state channel.
+
+## Q8
+The main significance of the off-chain P2P networks is in the making the on-chain networks more scalable by not publishing every transacion on the blockchain and therefore reducing the load on the on-chain networks. They solve the problem of scalability by creating private state channels over a P2P medium. Two or more parties can communicate over the private state channel using pre-set rules, by which they can make arbitrary number of intermidiate transactions, which are then submitted as a single transaction to the on-chain network and therefore written on the blockchain, when any of the involved parties wishes to close the state channel.
+
+## Q9
+Payment channel networks (PCNs) are off-chain P2P networks, which allow transactions to happen in a safe manner between only the transacting parties, by which the load on the on-chain networks is decreased. The main difference to the to the traditional communication networks is in routing, as traditional routing algorithms typically aim to find short and low-load paths, which has stable link capacities, while the link capacities in PCNs represent payment balances, which can be highly dynamic. Additional challanges such as privacy, security or transaction fees arrise when dealing with routing in PCNs. 
+
+## Q10
+Content-centric addressing is a type of adressing, in which the hashed (multihashed) data of a file are used as an adress, rather than the address being a location, where the file is stored. IPFS makes use of it apart from addressing by Content Identifiers (CIDs) obtained as multihashes, for linking of files or parts of files, for file versioning with a use of Merkle trees or for ensuring file integrity. Multihashes are self describing hashes as they contain the used hash function and the lenght of the digets prepended in front of the actual digest value.
+
+## Q11
+Pinning alows nodes to mark files as permanent in their local storage. This prevents the garbage collector from removing them, which does otherwise periodically happen for unpinned files. Content is pinned with an explicit user request, who stores the content in his local storage.
+
+## Q12
+Content-centric addressing - files can be retrieved using the same address, even when they change location.
+Decentralized nature - files or parts of files can be stored at different locations, which can improve availabilty and decrease the possibility of a single point failure as well as control over the available content.
+Inherent content deduplication - detecting same files, although with different names, at the protocol level with the use of CIDs.
+Content integrity checks - possibility to check, that a content of a file was not modified again by using the CIDs.
+Authorization, censorship and access control - the IPFS is based on P2P network, to which anyone can connect and which does not have by its nature an authority, wich could enfoce access control or censorship.
+
+## Q13
+Filecoin is a decentralized storage and retrieval network, which builds on top of IPFS. The use of Filecoin in IPFS improves IPFS’ besteffort storage and delivery service by providing incentive mechanisms. This means, that peers, who store and replicate content, are rewarded with cryptocurency tokens. And on the other hand, peers can ask for persistent storage in exchange for a fee.
+
+## Q14
+K-resilient equilibrium (if I undestood correctly, according to the video Nash equilibrium is always 1-resilient) is an equilibrium, for which holds, that no group of size k can gain by diviating (in a cooridnated way).
+
+K-resilient equilibria are interresting (when k is large), because they can discourage misbehaving (rational) players, as the probability of diviating and gaining is descreasing with larger k.
+
+I would give the Bitcoin consensus mechanism as an example. It is k-resiliant, where k is a half of the currently active mining nodes. It discourages a node to mine faulty blocks, as these will be detected and the misbehaving node will not make any BTC. The probability of other nodes misbehaving in the same way is minimal, given the needed compute power.
+
+## Q15
+As irrational players do not play the objectively best strategy for them (from multiple reasons), the protocol must account for that, so rational players are not hindered by it. The protocol must be t-immune to tolerate up to t irrational players, while not affecting the payofs of rational players.
+
+## Q16
+The outcome can depend also on a scheduler, which decides who moves and how long messages are going to take to be delivered. When a protocol needs to be proven in an asynchronous distributed system, it has to be tipically proven for all possible schedules given by the scheduler.
