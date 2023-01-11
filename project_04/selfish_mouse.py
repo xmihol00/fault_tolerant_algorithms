@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 
+student_name = 'David Mihola' # fill with your student name
+
 class QLearn:
     def __init__(self, actions, epsilon=0.1, alpha=0.2, gamma=0.9):
         self.q = {}
@@ -338,7 +340,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
         # add custom annotations
         for count, x_pos in zip(heights, x_positions):
             axis[1, i].annotate(f"{count:.2f}", (x_pos, count + height_offset), ha="center")
-    plt.savefig(f"absolute_stats_{world_name.lower().replace(' ', '_')}")
+    plt.savefig(f"plots/absolute_stats_{world_name.lower().replace(' ', '_')}")
     plt.show()
     
     figure, axis = plt.subplots(2, 2)
@@ -379,7 +381,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
         for count, x_pos in zip(heights[:2], x_positions[:2]):
             axis[1, i].annotate(f"{count * 100:.2f} %", (x_pos, count + height_offset), ha="center")
         axis[1, i].annotate(f"{heights[2]:.2f}", (x_positions[2], heights[2] + height_offset), ha="center")
-    plt.savefig(f"relative_stats_{world_name.lower().replace(' ', '_')}")
+    plt.savefig(f"plots/relative_stats_{world_name.lower().replace(' ', '_')}")
     plt.show()
 
     figure, axis = plt.subplots(2, 2)
@@ -451,7 +453,7 @@ for world_filename, world_name in [("world_empty.txt", "Empty world"), ("world_w
     axis[1, 1].annotate(f"{eaten_significant_improvement * 100:.2f} %", (1, (eaten_significant_improvement + offset) if eaten_significant_improvement >= 0 else 
                                                                     (eaten_significant_improvement - offset * 0.5)), 
                         ha="center", va="top" if eaten_significant_improvement < 0 else "baseline")
-    plt.savefig(f"improvements_{world_name.lower().replace(' ', '_')}")
+    plt.savefig(f"plots/improvements_{world_name.lower().replace(' ', '_')}")
     plt.show()
     ########################################### END OF PLOTS ###########################################
 
